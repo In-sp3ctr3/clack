@@ -50,21 +50,90 @@ public final class ClipboardHistoryStore: ObservableObject {
   public func recordCopy(
     _ content: String,
     sourceApp: String? = nil,
+    sourceBundleIdentifier: String? = nil,
+    sourceProcessIdentifier: Int? = nil,
+    pasteboardTypes: [String] = [],
     at date: Date = Date()
   ) -> ClipboardItem? {
-    guard !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+    recordItem(
+      kind: .text,
+      content: content,
+      sourceApp: sourceApp,
+      sourceBundleIdentifier: sourceBundleIdentifier,
+      sourceProcessIdentifier: sourceProcessIdentifier,
+      pasteboardTypes: pasteboardTypes,
+      at: date
+    )
+  }
+
+  @discardableResult
+  public func recordItem(
+    kind: ClipboardItemKind,
+    content: String,
+    sourceApp: String? = nil,
+    sourceBundleIdentifier: String? = nil,
+    sourceProcessIdentifier: Int? = nil,
+    pasteboardTypes: [String] = [],
+    fileURLs: [String] = [],
+    imageData: Data? = nil,
+    imageContentType: String? = nil,
+    imagePixelWidth: Int? = nil,
+    imagePixelHeight: Int? = nil,
+    at date: Date = Date()
+  ) -> ClipboardItem? {
+    let incomingItem = ClipboardItem(
+      kind: kind,
+      content: content,
+      sourceApp: normalizedSource(sourceApp),
+      sourceBundleIdentifier: normalizedSource(sourceBundleIdentifier),
+      sourceProcessIdentifier: sourceProcessIdentifier,
+      firstCopiedAt: date,
+      lastCopiedAt: date,
+      pasteboardTypes: pasteboardTypes,
+      fileURLs: fileURLs,
+      imageData: imageData,
+      imageContentType: imageContentType,
+      imagePixelWidth: imagePixelWidth,
+      imagePixelHeight: imagePixelHeight
+    )
+
+    return recordItem(incomingItem)
+  }
+
+  @discardableResult
+  public func recordItem(_ incomingItem: ClipboardItem) -> ClipboardItem? {
+    guard incomingItem.hasStorablePayload else {
       return nil
     }
 
-    let cleanedSource = normalizedSource(sourceApp)
-
-    if let existingIndex = items.firstIndex(where: { $0.content == content }) {
+    if let existingIndex = items.firstIndex(where: { $0.representsSameClipboardPayload(as: incomingItem) }) {
       var existingItem = items.remove(at: existingIndex)
       existingItem.copyCount += 1
-      existingItem.lastCopiedAt = date
+      existingItem.lastCopiedAt = incomingItem.lastCopiedAt
+      existingItem.content = incomingItem.content
+      existingItem.pasteboardTypes = incomingItem.pasteboardTypes
 
-      if let cleanedSource {
-        existingItem.sourceApp = cleanedSource
+      if let sourceApp = incomingItem.sourceApp {
+        existingItem.sourceApp = sourceApp
+      }
+
+      if let sourceBundleIdentifier = incomingItem.sourceBundleIdentifier {
+        existingItem.sourceBundleIdentifier = sourceBundleIdentifier
+      }
+
+      if let sourceProcessIdentifier = incomingItem.sourceProcessIdentifier {
+        existingItem.sourceProcessIdentifier = sourceProcessIdentifier
+      }
+
+      if !incomingItem.fileURLs.isEmpty {
+        existingItem.fileURLs = incomingItem.fileURLs
+      }
+
+      if incomingItem.imageData != nil {
+        existingItem.imageData = incomingItem.imageData
+        existingItem.imageContentType = incomingItem.imageContentType
+        existingItem.imagePixelWidth = incomingItem.imagePixelWidth
+        existingItem.imagePixelHeight = incomingItem.imagePixelHeight
       }
 
       items.append(existingItem)
@@ -74,18 +143,11 @@ public final class ClipboardHistoryStore: ObservableObject {
       return existingItem
     }
 
-    let item = ClipboardItem(
-      content: content,
-      sourceApp: cleanedSource,
-      firstCopiedAt: date,
-      lastCopiedAt: date
-    )
-
-    items.append(item)
+    items.append(incomingItem)
     sortItems()
     trimToLimit()
     save()
-    return item
+    return incomingItem
   }
 
   public func updateLimit(_ limit: Int) {

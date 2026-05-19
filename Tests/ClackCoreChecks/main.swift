@@ -21,7 +21,10 @@ struct ClackCoreChecks {
       Check(name: "history limit prunes old unpinned items", run: testHistoryLimitPrunesOldUnpinnedItems),
       Check(name: "pinned items survive limit and clear", run: testPinnedItemsSurviveLimitAndClear),
       Check(name: "search matches content and source app", run: testSearchMatchesContentAndSourceApp),
+      Check(name: "file copies store URLs and deduplicate", run: testFileCopiesStoreURLsAndDeduplicate),
+      Check(name: "image copies store data and metadata", run: testImageCopiesStoreDataAndMetadata),
       Check(name: "persistence loads and saves items", run: testPersistenceLoadsAndSavesItems),
+      Check(name: "legacy text history decodes with defaults", run: testLegacyTextHistoryDecodesWithDefaults),
       Check(name: "whitespace-only content is ignored", run: testWhitespaceOnlyClipboardContentIsIgnored),
       Check(name: "preferences persist values and ignore lists", run: testPreferencesPersistValuesAndIgnoreLists)
     ]
@@ -44,11 +47,22 @@ struct ClackCoreChecks {
     let store = ClipboardHistoryStore(maxStoredItems: 10, loadSavedItems: false)
     let copiedAt = Date(timeIntervalSince1970: 100)
 
-    let item = store.recordCopy("hello world", sourceApp: "Safari", at: copiedAt)
+    let item = store.recordCopy(
+      "hello world",
+      sourceApp: "Safari",
+      sourceBundleIdentifier: "com.apple.Safari",
+      sourceProcessIdentifier: 42,
+      pasteboardTypes: ["public.utf8-plain-text"],
+      at: copiedAt
+    )
 
     try expect(item?.content == "hello world", "expected copied content to be stored")
     try expect(store.items.count == 1, "expected one stored item")
+    try expect(store.items.first?.kind == .text, "expected text kind to be stored")
     try expect(store.items.first?.sourceApp == "Safari", "expected source app to be stored")
+    try expect(store.items.first?.sourceBundleIdentifier == "com.apple.Safari", "expected source bundle id")
+    try expect(store.items.first?.sourceProcessIdentifier == 42, "expected source pid")
+    try expect(store.items.first?.pasteboardTypes == ["public.utf8-plain-text"], "expected pasteboard types")
     try expect(store.items.first?.firstCopiedAt == copiedAt, "expected first copy date to match")
     try expect(store.items.first?.lastCopiedAt == copiedAt, "expected last copy date to match")
     try expect(store.items.first?.copyCount == 1, "expected first copy count to be one")
@@ -115,6 +129,69 @@ struct ClackCoreChecks {
   }
 
   @MainActor
+  private static func testFileCopiesStoreURLsAndDeduplicate() throws {
+    let store = ClipboardHistoryStore(maxStoredItems: 10, loadSavedItems: false)
+    let fileURLs = [
+      "/Users/example/Desktop/Invoice.pdf",
+      "/Users/example/Desktop/Notes.txt"
+    ]
+
+    store.recordItem(
+      kind: .file,
+      content: "Invoice.pdf\nNotes.txt",
+      sourceApp: "Finder",
+      pasteboardTypes: ["public.file-url"],
+      fileURLs: fileURLs,
+      at: Date(timeIntervalSince1970: 100)
+    )
+    store.recordItem(
+      kind: .file,
+      content: "Invoice.pdf\nNotes.txt",
+      sourceApp: "Finder",
+      pasteboardTypes: ["public.file-url"],
+      fileURLs: fileURLs,
+      at: Date(timeIntervalSince1970: 200)
+    )
+
+    try expect(store.items.count == 1, "expected duplicate file URLs to reuse the stored item")
+    try expect(store.items.first?.kind == .file, "expected file kind")
+    try expect(store.items.first?.fileURLs == fileURLs, "expected file URLs to be stored")
+    try expect(store.items.first?.copyCount == 2, "expected file copy count to increment")
+    try expect(store.items.first?.preview.contains("2 files") == true, "expected multi-file preview")
+
+    store.searchText = "Invoice.pdf"
+    try expect(store.filteredItems.count == 1, "expected file name search match")
+  }
+
+  @MainActor
+  private static func testImageCopiesStoreDataAndMetadata() throws {
+    let store = ClipboardHistoryStore(maxStoredItems: 10, loadSavedItems: false)
+    let imageData = Data([0x89, 0x50, 0x4E, 0x47])
+
+    let item = store.recordItem(
+      kind: .image,
+      content: "Image",
+      sourceApp: "Preview",
+      sourceBundleIdentifier: "com.apple.Preview",
+      pasteboardTypes: ["public.png", "public.tiff"],
+      imageData: imageData,
+      imageContentType: "public.png",
+      imagePixelWidth: 12,
+      imagePixelHeight: 10,
+      at: Date(timeIntervalSince1970: 100)
+    )
+
+    try expect(item?.kind == .image, "expected image kind")
+    try expect(item?.imageData == imageData, "expected image data")
+    try expect(item?.byteCount == imageData.count, "expected image byte count")
+    try expect(item?.preview == "Image (12x10)", "expected image dimensions in preview")
+    try expect(item?.sourceBundleIdentifier == "com.apple.Preview", "expected source bundle id")
+
+    store.searchText = "public.png"
+    try expect(store.filteredItems.count == 1, "expected pasteboard type search match")
+  }
+
+  @MainActor
   private static func testPersistenceLoadsAndSavesItems() throws {
     let savedItem = ClipboardItem(
       content: "saved",
@@ -131,13 +208,40 @@ struct ClackCoreChecks {
     try expect(persistence.savedItems.map(\.content) == ["new", "saved"], "expected new item to persist")
   }
 
+  private static func testLegacyTextHistoryDecodesWithDefaults() throws {
+    let json = """
+    [{
+      "id": "00000000-0000-0000-0000-000000000001",
+      "content": "old text item",
+      "sourceApp": "Notes",
+      "firstCopiedAt": "2026-05-19T12:00:00Z",
+      "lastCopiedAt": "2026-05-19T12:05:00Z",
+      "copyCount": 3,
+      "isPinned": true
+    }]
+    """
+
+    let decoder = JSONDecoder()
+    decoder.dateDecodingStrategy = .iso8601
+    let items = try decoder.decode([ClipboardItem].self, from: Data(json.utf8))
+
+    try expect(items.first?.kind == .text, "expected missing kind to default to text")
+    try expect(items.first?.pasteboardTypes == [], "expected missing pasteboard types to default empty")
+    try expect(items.first?.fileURLs == [], "expected missing file URLs to default empty")
+    try expect(items.first?.imageData == nil, "expected missing image data to default nil")
+  }
+
   @MainActor
   private static func testWhitespaceOnlyClipboardContentIsIgnored() throws {
     let store = ClipboardHistoryStore(maxStoredItems: 10, loadSavedItems: false)
 
     let item = store.recordCopy("   \n\t   ")
+    let emptyFileItem = store.recordItem(kind: .file, content: "", fileURLs: [])
+    let emptyImageItem = store.recordItem(kind: .image, content: "Image", imageData: Data())
 
     try expect(item == nil, "expected whitespace-only copy to be ignored")
+    try expect(emptyFileItem == nil, "expected empty file copy to be ignored")
+    try expect(emptyImageItem == nil, "expected empty image copy to be ignored")
     try expect(store.items.isEmpty, "expected no stored items")
   }
 
@@ -154,6 +258,8 @@ struct ClackCoreChecks {
     let preferences = ClackPreferences(defaults: defaults)
     preferences.setHistoryLimit(75)
     preferences.saveText = false
+    preferences.saveFiles = true
+    preferences.saveImages = true
     preferences.sortMode = .content
     preferences.searchMode = .exact
     preferences.showFooter = false
@@ -166,6 +272,8 @@ struct ClackCoreChecks {
 
     try expect(reloadedPreferences.historyLimit == 75, "expected history limit to persist")
     try expect(reloadedPreferences.saveText == false, "expected save text setting to persist")
+    try expect(reloadedPreferences.saveFiles, "expected save files setting to persist")
+    try expect(reloadedPreferences.saveImages, "expected save images setting to persist")
     try expect(reloadedPreferences.sortMode == .content, "expected sort mode to persist")
     try expect(reloadedPreferences.searchMode == .exact, "expected search mode to persist")
     try expect(reloadedPreferences.showFooter == false, "expected footer setting to persist")
