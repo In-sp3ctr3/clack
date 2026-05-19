@@ -16,3 +16,7 @@ This project follows a simple versioned changelog format inspired by Keep a Chan
 - Added draft release packaging for version tags.
 - Added dated GitHub prereleases for preliminary builds.
 - Added a Vercel-ready download page scaffold.
+
+### Changed
+
+- Aligned download copy and preferences with the current alpha behavior.
