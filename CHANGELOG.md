@@ -12,3 +12,4 @@ This project follows a simple versioned changelog format inspired by Keep a Chan
 - Added the first native macOS menu bar app scaffold.
 - Added local clipboard history storage, search, pinning, deletion, clearing, and preferences.
 - Added Swift checks for clipboard history behavior.
+- Added multi-pane preferences for general, storage, appearance, pins, ignore, and advanced settings.

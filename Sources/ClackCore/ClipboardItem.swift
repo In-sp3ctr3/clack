@@ -47,14 +47,19 @@ public struct ClipboardItem: Codable, Hashable, Identifiable {
     content.data(using: .utf8)?.count ?? 0
   }
 
-  public func matches(_ query: String) -> Bool {
+  public func matches(_ query: String, mode: SearchMode = .contains) -> Bool {
     let cleanedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
 
     guard !cleanedQuery.isEmpty else {
       return true
     }
 
-    let options: String.CompareOptions = [.caseInsensitive, .diacriticInsensitive]
+    let options: String.CompareOptions = switch mode {
+    case .contains:
+      [.caseInsensitive, .diacriticInsensitive]
+    case .exact:
+      []
+    }
 
     if content.range(of: cleanedQuery, options: options) != nil {
       return true

@@ -22,7 +22,8 @@ struct ClackCoreChecks {
       Check(name: "pinned items survive limit and clear", run: testPinnedItemsSurviveLimitAndClear),
       Check(name: "search matches content and source app", run: testSearchMatchesContentAndSourceApp),
       Check(name: "persistence loads and saves items", run: testPersistenceLoadsAndSavesItems),
-      Check(name: "whitespace-only content is ignored", run: testWhitespaceOnlyClipboardContentIsIgnored)
+      Check(name: "whitespace-only content is ignored", run: testWhitespaceOnlyClipboardContentIsIgnored),
+      Check(name: "preferences persist values and ignore lists", run: testPreferencesPersistValuesAndIgnoreLists)
     ]
 
     do {
@@ -138,6 +139,39 @@ struct ClackCoreChecks {
 
     try expect(item == nil, "expected whitespace-only copy to be ignored")
     try expect(store.items.isEmpty, "expected no stored items")
+  }
+
+  @MainActor
+  private static func testPreferencesPersistValuesAndIgnoreLists() throws {
+    let suiteName = "ClackCoreChecks-\(UUID().uuidString)"
+    guard let defaults = UserDefaults(suiteName: suiteName) else {
+      throw CheckFailure(description: "expected test defaults suite")
+    }
+    defer {
+      defaults.removePersistentDomain(forName: suiteName)
+    }
+
+    let preferences = ClackPreferences(defaults: defaults)
+    preferences.setHistoryLimit(75)
+    preferences.saveText = false
+    preferences.sortMode = .content
+    preferences.searchMode = .exact
+    preferences.showFooter = false
+    preferences.addIgnoredApplication("Safari")
+    preferences.addIgnoredApplication("Safari")
+    preferences.addIgnoredRegularExpression("token_[a-z]+")
+    preferences.temporarilyIgnoreNewCopies = true
+
+    let reloadedPreferences = ClackPreferences(defaults: defaults)
+
+    try expect(reloadedPreferences.historyLimit == 75, "expected history limit to persist")
+    try expect(reloadedPreferences.saveText == false, "expected save text setting to persist")
+    try expect(reloadedPreferences.sortMode == .content, "expected sort mode to persist")
+    try expect(reloadedPreferences.searchMode == .exact, "expected search mode to persist")
+    try expect(reloadedPreferences.showFooter == false, "expected footer setting to persist")
+    try expect(reloadedPreferences.ignoredApplications == ["Safari"], "expected ignored app list to stay unique")
+    try expect(reloadedPreferences.ignoredRegularExpressions == ["token_[a-z]+"], "expected ignored regex to persist")
+    try expect(reloadedPreferences.temporarilyIgnoreNewCopies, "expected ignore toggle to persist")
   }
 
   private static func expect(

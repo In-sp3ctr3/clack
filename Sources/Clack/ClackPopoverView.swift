@@ -11,7 +11,11 @@ struct ClackPopoverView: View {
   @State private var hoveredItemID: ClipboardItem.ID?
 
   private var visibleItems: [ClipboardItem] {
-    store.filteredItems
+    let filteredItems = store.items.filter {
+      $0.matches(store.searchText, mode: preferences.searchMode)
+    }
+
+    return sortedItems(filteredItems)
   }
 
   private var selectedItem: ClipboardItem? {
@@ -24,9 +28,11 @@ struct ClackPopoverView: View {
 
   var body: some View {
     VStack(spacing: 0) {
-      searchBar
+      if showsSearchField {
+        searchBar
 
-      Divider()
+        Divider()
+      }
 
       itemList
 
@@ -37,9 +43,11 @@ struct ClackPopoverView: View {
         actions: actions
       )
 
-      Divider()
+      if preferences.showFooter {
+        Divider()
 
-      footer
+        footer
+      }
     }
     .frame(width: 460, height: 620)
     .background(Color(nsColor: .windowBackgroundColor))
@@ -50,6 +58,11 @@ struct ClackPopoverView: View {
 
   private var searchBar: some View {
     HStack(spacing: 8) {
+      if preferences.showTitleBeforeSearchField {
+        Text("Clack")
+          .font(.headline)
+      }
+
       Image(systemName: "magnifyingglass")
         .foregroundStyle(.secondary)
 
@@ -104,6 +117,7 @@ struct ClackPopoverView: View {
       ClipboardRow(
         item: item,
         shortcutNumber: index + 1,
+        showIcon: preferences.showApplicationIcons,
         restore: { actions.restore(item) },
         togglePin: { actions.togglePin(item) },
         delete: { actions.delete(item) },
@@ -116,6 +130,7 @@ struct ClackPopoverView: View {
       ClipboardRow(
         item: item,
         shortcutNumber: nil,
+        showIcon: preferences.showApplicationIcons,
         restore: { actions.restore(item) },
         togglePin: { actions.togglePin(item) },
         delete: { actions.delete(item) },
@@ -164,11 +179,42 @@ struct ClackPopoverView: View {
     .padding(.horizontal, 12)
     .padding(.vertical, 10)
   }
+
+  private var showsSearchField: Bool {
+    switch preferences.searchFieldVisibility {
+    case .always:
+      true
+    case .whenHistoryExists:
+      !store.items.isEmpty || !store.searchText.isEmpty
+    case .never:
+      false
+    }
+  }
+
+  private func sortedItems(_ items: [ClipboardItem]) -> [ClipboardItem] {
+    items.sorted { lhs, rhs in
+      if lhs.isPinned != rhs.isPinned {
+        return preferences.pinLocation == .top ? lhs.isPinned : !lhs.isPinned
+      }
+
+      switch preferences.sortMode {
+      case .lastCopied:
+        return lhs.lastCopiedAt > rhs.lastCopiedAt
+      case .firstCopied:
+        return lhs.firstCopiedAt > rhs.firstCopiedAt
+      case .copyCount:
+        return lhs.copyCount > rhs.copyCount
+      case .content:
+        return lhs.content.localizedCaseInsensitiveCompare(rhs.content) == .orderedAscending
+      }
+    }
+  }
 }
 
 private struct ClipboardRow: View {
   let item: ClipboardItem
   let shortcutNumber: Int?
+  let showIcon: Bool
   let restore: () -> Void
   let togglePin: () -> Void
   let delete: () -> Void
@@ -177,9 +223,11 @@ private struct ClipboardRow: View {
   var body: some View {
     Button(action: restore) {
       HStack(alignment: .top, spacing: 10) {
-        Image(systemName: item.isPinned ? "pin.fill" : "doc.text")
-          .frame(width: 18)
-          .foregroundStyle(item.isPinned ? .blue : .secondary)
+        if showIcon || item.isPinned {
+          Image(systemName: item.isPinned ? "pin.fill" : "doc.text")
+            .frame(width: 18)
+            .foregroundStyle(item.isPinned ? .blue : .secondary)
+        }
 
         VStack(alignment: .leading, spacing: 5) {
           Text(item.preview)

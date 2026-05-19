@@ -5,15 +5,18 @@ import ClackCore
 final class PasteboardMonitor {
   private let pasteboard: NSPasteboard
   private let store: ClipboardHistoryStore
+  private let preferences: ClackPreferences
   private var timer: Timer?
   private var lastChangeCount: Int
   private var ignoredChangeCount: Int?
 
   init(
     store: ClipboardHistoryStore,
+    preferences: ClackPreferences,
     pasteboard: NSPasteboard = .general
   ) {
     self.store = store
+    self.preferences = preferences
     self.pasteboard = pasteboard
     self.lastChangeCount = pasteboard.changeCount
   }
@@ -50,9 +53,23 @@ final class PasteboardMonitor {
     }
 
     lastChangeCount = currentChangeCount
+    preferences.refreshRuntimeControls()
+
+    guard !preferences.temporarilyIgnoreNewCopies else {
+      return
+    }
+
+    if preferences.ignoreOnlyNextCopy {
+      preferences.ignoreOnlyNextCopy = false
+      return
+    }
 
     if ignoredChangeCount == currentChangeCount {
       ignoredChangeCount = nil
+      return
+    }
+
+    guard !pasteboardContainsIgnoredType() else {
       return
     }
 
@@ -64,6 +81,49 @@ final class PasteboardMonitor {
     }
 
     let sourceApp = NSWorkspace.shared.frontmostApplication?.localizedName
+    guard !isIgnored(sourceApp: sourceApp, content: content) else {
+      return
+    }
+
     store.recordCopy(content, sourceApp: sourceApp)
+  }
+
+  private func pasteboardContainsIgnoredType() -> Bool {
+    let ignoredTypes = Set(preferences.ignoredPasteboardTypes.map { $0.lowercased() })
+
+    guard !ignoredTypes.isEmpty else {
+      return false
+    }
+
+    return pasteboard.types?.contains { type in
+      ignoredTypes.contains(type.rawValue.lowercased())
+    } ?? false
+  }
+
+  private func isIgnored(sourceApp: String?, content: String) -> Bool {
+    if !preferences.saveText {
+      return true
+    }
+
+    let ignoredApps = preferences.ignoredApplications.map { $0.lowercased() }
+    let normalizedSourceApp = sourceApp?.lowercased()
+    let appIsListed = normalizedSourceApp.map { ignoredApps.contains($0) } ?? false
+
+    if preferences.ignoreAllApplicationsExceptListed {
+      guard appIsListed else {
+        return true
+      }
+    } else if appIsListed {
+      return true
+    }
+
+    return preferences.ignoredRegularExpressions.contains { pattern in
+      guard let expression = try? NSRegularExpression(pattern: pattern) else {
+        return false
+      }
+
+      let range = NSRange(location: 0, length: (content as NSString).length)
+      return expression.firstMatch(in: content, options: [], range: range) != nil
+    }
   }
 }
