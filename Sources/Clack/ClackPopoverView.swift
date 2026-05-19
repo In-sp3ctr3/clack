@@ -576,6 +576,16 @@ private struct DetailPane: View {
   }
 }
 
+private extension ClipboardItemKind {
+  var systemImageName: String {
+    switch self {
+    case .text: "doc.text"
+    case .file: "doc"
+    case .image: "photo"
+    }
+  }
+}
+
 private struct MetadataLabel: View {
   let title: String
   let date: Date

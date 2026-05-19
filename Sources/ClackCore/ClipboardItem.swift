@@ -6,14 +6,6 @@ public enum ClipboardItemKind: String, Codable, CaseIterable, Hashable, Identifi
   case image = "Image"
 
   public var id: String { rawValue }
-
-  public var systemImageName: String {
-    switch self {
-    case .text: "doc.text"
-    case .file: "doc"
-    case .image: "photo"
-    }
-  }
 }
 
 public struct ClipboardItem: Codable, Hashable, Identifiable {
