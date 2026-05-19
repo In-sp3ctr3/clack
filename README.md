@@ -5,7 +5,7 @@
 
 Clack is a native macOS clipboard memory tool. It lives in the menu bar, remembers what you copy, and lets you quickly search, pin, restore, or clean up clipboard items without breaking your flow.
 
-> Project status: early alpha. A preliminary macOS build is available on GitHub Releases, and the app can also be built from source.
+> Project status: early alpha. A preliminary macOS build is available through Homebrew and GitHub Releases, and the app can also be built from source.
 
 ## Goals
 
@@ -34,6 +34,19 @@ Clipboard managers handle sensitive data by nature. Clack's default design princ
 If you find a privacy or security issue, please see [SECURITY.md](SECURITY.md).
 
 ## Download
+
+Install the current alpha with Homebrew:
+
+```sh
+brew install --cask In-sp3ctr3/tap/clack
+```
+
+Or tap the project repository first:
+
+```sh
+brew tap In-sp3ctr3/tap
+brew install --cask clack
+```
 
 Download the latest alpha from [GitHub Releases](https://github.com/In-sp3ctr3/clack/releases).
 

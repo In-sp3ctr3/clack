@@ -30,6 +30,14 @@ GitHub Releases should be the source of truth for downloadable artifacts. The we
 
 Preliminary builds use the release date in both the title and artifact names, for example `Clack-0.1.0-alpha.1-2026-05-19.dmg`.
 
+The project-owned Homebrew tap lives at [In-sp3ctr3/homebrew-tap](https://github.com/In-sp3ctr3/homebrew-tap). After publishing a new release, update `Casks/clack.rb` with the new version, release date, and DMG SHA-256, then confirm:
+
+```sh
+brew install --cask In-sp3ctr3/tap/clack
+```
+
+The cask can move to Homebrew's official cask repository after stable signed and notarized releases are available and the project meets Homebrew's acceptance expectations.
+
 ## Packages
 
 Clack is a desktop app, so GitHub Packages is not expected to be part of the first release. If the project later publishes reusable libraries or package-manager artifacts, that decision should be documented here.
