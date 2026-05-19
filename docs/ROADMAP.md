@@ -18,6 +18,7 @@ This roadmap is intentionally lightweight. It should guide the first releases wi
 - Universal 2 macOS builds where the build environment supports both architectures.
 - Dated GitHub prereleases with checksums.
 - DMG packaging for alpha downloads.
+- Custom app icon.
 
 ## Next: Workflow Polish
 

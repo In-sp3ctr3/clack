@@ -8,6 +8,10 @@
   <string>Clack</string>
   <key>CFBundleIdentifier</key>
   <string>com.jadanjones.Clack</string>
+  <key>CFBundleIconFile</key>
+  <string>Clack.icns</string>
+  <key>CFBundleIconName</key>
+  <string>Clack</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundleName</key>

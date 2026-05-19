@@ -9,9 +9,10 @@ APP_DIR="$ROOT_DIR/.build/apple/Clack.app"
 cd "$ROOT_DIR"
 
 rm -rf "$APP_DIR"
-mkdir -p "$APP_DIR/Contents/MacOS"
+mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
 
 cp "$ROOT_DIR/Packaging/Info.plist" "$APP_DIR/Contents/Info.plist"
+cp "$ROOT_DIR/Packaging/Clack.icns" "$APP_DIR/Contents/Resources/Clack.icns"
 
 if [[ "$(uname -s)" == "Darwin" && "$BUILD_UNIVERSAL" == "1" && -x "$(command -v lipo)" ]]; then
   swift build --configuration "$CONFIGURATION" --triple arm64-apple-macosx13.0 --product Clack
