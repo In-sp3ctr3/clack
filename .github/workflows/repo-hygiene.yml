@@ -1,0 +1,57 @@
+name: Repository Hygiene
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  hygiene:
+    name: Required files and conflict checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Check required community files
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          required=(
+            "README.md"
+            "LICENSE"
+            "CONTRIBUTING.md"
+            "CODE_OF_CONDUCT.md"
+            "SECURITY.md"
+            "SUPPORT.md"
+            "GOVERNANCE.md"
+            "CHANGELOG.md"
+            ".github/PULL_REQUEST_TEMPLATE.md"
+            ".github/CODEOWNERS"
+          )
+
+          missing=0
+          for file in "${required[@]}"; do
+            if [[ ! -f "$file" ]]; then
+              echo "Missing required file: $file"
+              missing=1
+            fi
+          done
+
+          exit "$missing"
+
+      - name: Check for committed merge conflict markers
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if git grep -nE '^(<<<<<<<|=======|>>>>>>>)' -- .; then
+            echo "Merge conflict markers were found."
+            exit 1
+          fi

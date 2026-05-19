@@ -1,0 +1,35 @@
+name: Bug report
+description: Report something that is broken or surprising.
+title: "[Bug]: "
+labels:
+  - "type: bug"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please remove private clipboard contents before sharing examples.
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the bug and what you expected instead.
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      placeholder: "Example: macOS 15.5"
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Start Clack
+        2. Copy ...
+        3. Click ...
+  - type: textarea
+    id: extra
+    attributes:
+      label: Extra context
+      description: Screenshots, recordings, logs, or other context. Do not include secrets or private clipboard data.
