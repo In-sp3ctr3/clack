@@ -43,17 +43,57 @@ Maintainers may also use `codex/<short-name>` for assisted maintenance work.
 1. Open an issue first for larger changes.
 2. Branch from the latest `main`.
 3. Keep the PR scoped to one idea.
-4. Fill out the pull request template.
-5. Make sure CI passes.
-6. Wait for review before merging unless you are doing an approved maintainer-only housekeeping change.
+4. Keep the diff small enough to review in one sitting.
+5. Fill out the pull request template with a short, specific brief.
+6. Make sure CI passes.
+7. Wait for review before merging unless you are doing an approved maintainer-only housekeeping change.
+
+## PR Size
+
+Default limits:
+
+- No more than 12 changed files.
+- No more than 400 changed lines.
+- No unrelated cleanup mixed into feature work.
+- No drive-by formatting unless the PR is only formatting.
+
+If a PR needs to be larger, explain why in the PR body and ask a maintainer to add `size: approved`.
+
+Good PR shape:
+
+- One behavior change.
+- One bug fix.
+- One UI slice.
+- One documentation update.
+- One maintenance task.
+
+Split the rest.
+
+## PR Briefs
+
+Keep the PR body plain and useful. A good brief says:
+
+- what changed,
+- why it changed,
+- how it was checked,
+- anything intentionally left out.
+
+Avoid padded summaries, generic claims, and long checklists that do not add context.
 
 ## Commit Style
 
-Use clear, sentence-style commit messages. Conventional commit prefixes are welcome but not required:
+Use clear, sentence-style commit messages. Each commit should have one reason to exist. Conventional commit prefixes are welcome but not required:
 
 - `feat: add clipboard history storage`
 - `fix: avoid saving duplicate clipboard item`
 - `docs: explain release process`
+
+Commit guidelines:
+
+- Keep subject lines under 72 characters.
+- Prefer 1-5 commits per PR.
+- Use the body only when the reason is not obvious from the diff.
+- Do not use vague messages like `updates`, `changes`, or `fix stuff`.
 
 ## Testing
 
