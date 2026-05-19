@@ -21,6 +21,8 @@ struct ClackCoreChecks {
       Check(name: "history limit prunes old unpinned items", run: testHistoryLimitPrunesOldUnpinnedItems),
       Check(name: "pinned items survive limit and clear", run: testPinnedItemsSurviveLimitAndClear),
       Check(name: "search matches content and source app", run: testSearchMatchesContentAndSourceApp),
+      Check(name: "formatted text stores rich representations", run: testFormattedTextStoresRichRepresentations),
+      Check(name: "source confidence persists and updates", run: testSourceConfidencePersistsAndUpdates),
       Check(name: "file copies store URLs and deduplicate", run: testFileCopiesStoreURLsAndDeduplicate),
       Check(name: "image copies store data and metadata", run: testImageCopiesStoreDataAndMetadata),
       Check(name: "persistence loads and saves items", run: testPersistenceLoadsAndSavesItems),
@@ -52,6 +54,8 @@ struct ClackCoreChecks {
       sourceApp: "Safari",
       sourceBundleIdentifier: "com.apple.Safari",
       sourceProcessIdentifier: 42,
+      sourceConfidence: .frontmostApplication,
+      sourceCapturedAt: copiedAt,
       pasteboardTypes: ["public.utf8-plain-text"],
       at: copiedAt
     )
@@ -62,10 +66,75 @@ struct ClackCoreChecks {
     try expect(store.items.first?.sourceApp == "Safari", "expected source app to be stored")
     try expect(store.items.first?.sourceBundleIdentifier == "com.apple.Safari", "expected source bundle id")
     try expect(store.items.first?.sourceProcessIdentifier == 42, "expected source pid")
+    try expect(store.items.first?.sourceConfidence == .frontmostApplication, "expected source confidence")
+    try expect(store.items.first?.sourceCapturedAt == copiedAt, "expected source capture date")
     try expect(store.items.first?.pasteboardTypes == ["public.utf8-plain-text"], "expected pasteboard types")
     try expect(store.items.first?.firstCopiedAt == copiedAt, "expected first copy date to match")
     try expect(store.items.first?.lastCopiedAt == copiedAt, "expected last copy date to match")
     try expect(store.items.first?.copyCount == 1, "expected first copy count to be one")
+  }
+
+  @MainActor
+  private static func testFormattedTextStoresRichRepresentations() throws {
+    let store = ClipboardHistoryStore(maxStoredItems: 10, loadSavedItems: false)
+    let rtf = ClipboardDataRepresentation(type: "public.rtf", data: Data("{\\rtf1 bold}".utf8))
+    let html = ClipboardDataRepresentation(type: "public.html", data: Data("<b>bold</b>".utf8))
+
+    store.recordItem(
+      kind: .richText,
+      content: "bold",
+      sourceApp: "Pages",
+      pasteboardTypes: ["public.rtf", "public.html", "public.utf8-plain-text"],
+      richTextRepresentations: [rtf, html],
+      at: Date(timeIntervalSince1970: 100)
+    )
+    store.recordItem(
+      kind: .richText,
+      content: "bold",
+      sourceApp: "Pages",
+      pasteboardTypes: ["public.rtf", "public.html", "public.utf8-plain-text"],
+      richTextRepresentations: [rtf, html],
+      at: Date(timeIntervalSince1970: 200)
+    )
+
+    let item = try require(store.items.first, "expected formatted text item")
+    try expect(store.items.count == 1, "expected duplicate rich text to reuse the stored item")
+    try expect(item.kind == .richText, "expected formatted text kind")
+    try expect(item.richTextRepresentations == [rtf, html], "expected rich text representations")
+    try expect(item.copyCount == 2, "expected rich text copy count to increment")
+    try expect(item.byteCount >= rtf.data.count + html.data.count, "expected rich text byte count")
+    try expect(item.richTextTypeDescription == "public.rtf, public.html", "expected rich text type summary")
+
+    store.searchText = "formatted"
+    try expect(store.filteredItems.count == 1, "expected kind search match")
+  }
+
+  @MainActor
+  private static func testSourceConfidencePersistsAndUpdates() throws {
+    let store = ClipboardHistoryStore(maxStoredItems: 10, loadSavedItems: false)
+    let firstDate = Date(timeIntervalSince1970: 100)
+    let secondDate = Date(timeIntervalSince1970: 200)
+
+    store.recordCopy(
+      "source test",
+      sourceApp: "Notes",
+      sourceConfidence: .recentApplication,
+      sourceCapturedAt: firstDate,
+      at: firstDate
+    )
+    store.recordCopy(
+      "source test",
+      sourceApp: "Mail",
+      sourceConfidence: .frontmostApplication,
+      sourceCapturedAt: secondDate,
+      at: secondDate
+    )
+
+    let item = try require(store.items.first, "expected source item")
+    try expect(item.sourceApp == "Mail", "expected source app to update")
+    try expect(item.sourceConfidence == .frontmostApplication, "expected source confidence to update")
+    try expect(item.sourceCapturedAt == secondDate, "expected source capture date to update")
+    try expect(item.copyCount == 2, "expected duplicate count to update")
   }
 
   @MainActor
@@ -229,6 +298,8 @@ struct ClackCoreChecks {
     try expect(items.first?.pasteboardTypes == [], "expected missing pasteboard types to default empty")
     try expect(items.first?.fileURLs == [], "expected missing file URLs to default empty")
     try expect(items.first?.imageData == nil, "expected missing image data to default nil")
+    try expect(items.first?.richTextRepresentations == [], "expected missing rich text data to default empty")
+    try expect(items.first?.sourceConfidence == .frontmostApplication, "expected legacy source confidence")
   }
 
   @MainActor
@@ -236,10 +307,12 @@ struct ClackCoreChecks {
     let store = ClipboardHistoryStore(maxStoredItems: 10, loadSavedItems: false)
 
     let item = store.recordCopy("   \n\t   ")
+    let emptyRichTextItem = store.recordItem(kind: .richText, content: "formatted", richTextRepresentations: [])
     let emptyFileItem = store.recordItem(kind: .file, content: "", fileURLs: [])
     let emptyImageItem = store.recordItem(kind: .image, content: "Image", imageData: Data())
 
     try expect(item == nil, "expected whitespace-only copy to be ignored")
+    try expect(emptyRichTextItem == nil, "expected empty rich text copy to be ignored")
     try expect(emptyFileItem == nil, "expected empty file copy to be ignored")
     try expect(emptyImageItem == nil, "expected empty image copy to be ignored")
     try expect(store.items.isEmpty, "expected no stored items")
@@ -289,5 +362,16 @@ struct ClackCoreChecks {
     guard condition() else {
       throw CheckFailure(description: message)
     }
+  }
+
+  private static func require<T>(
+    _ value: T?,
+    _ message: String
+  ) throws -> T {
+    guard let value else {
+      throw CheckFailure(description: message)
+    }
+
+    return value
   }
 }

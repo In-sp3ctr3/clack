@@ -52,6 +52,8 @@ public final class ClipboardHistoryStore: ObservableObject {
     sourceApp: String? = nil,
     sourceBundleIdentifier: String? = nil,
     sourceProcessIdentifier: Int? = nil,
+    sourceConfidence: ClipboardSourceConfidence = .unknown,
+    sourceCapturedAt: Date? = nil,
     pasteboardTypes: [String] = [],
     at date: Date = Date()
   ) -> ClipboardItem? {
@@ -61,6 +63,8 @@ public final class ClipboardHistoryStore: ObservableObject {
       sourceApp: sourceApp,
       sourceBundleIdentifier: sourceBundleIdentifier,
       sourceProcessIdentifier: sourceProcessIdentifier,
+      sourceConfidence: sourceConfidence,
+      sourceCapturedAt: sourceCapturedAt,
       pasteboardTypes: pasteboardTypes,
       at: date
     )
@@ -73,8 +77,11 @@ public final class ClipboardHistoryStore: ObservableObject {
     sourceApp: String? = nil,
     sourceBundleIdentifier: String? = nil,
     sourceProcessIdentifier: Int? = nil,
+    sourceConfidence: ClipboardSourceConfidence = .unknown,
+    sourceCapturedAt: Date? = nil,
     pasteboardTypes: [String] = [],
     fileURLs: [String] = [],
+    richTextRepresentations: [ClipboardDataRepresentation] = [],
     imageData: Data? = nil,
     imageContentType: String? = nil,
     imagePixelWidth: Int? = nil,
@@ -87,10 +94,13 @@ public final class ClipboardHistoryStore: ObservableObject {
       sourceApp: normalizedSource(sourceApp),
       sourceBundleIdentifier: normalizedSource(sourceBundleIdentifier),
       sourceProcessIdentifier: sourceProcessIdentifier,
+      sourceConfidence: sourceConfidence,
+      sourceCapturedAt: sourceCapturedAt,
       firstCopiedAt: date,
       lastCopiedAt: date,
       pasteboardTypes: pasteboardTypes,
       fileURLs: fileURLs,
+      richTextRepresentations: richTextRepresentations,
       imageData: imageData,
       imageContentType: imageContentType,
       imagePixelWidth: imagePixelWidth,
@@ -112,6 +122,8 @@ public final class ClipboardHistoryStore: ObservableObject {
       existingItem.lastCopiedAt = incomingItem.lastCopiedAt
       existingItem.content = incomingItem.content
       existingItem.pasteboardTypes = incomingItem.pasteboardTypes
+      existingItem.sourceConfidence = incomingItem.sourceConfidence
+      existingItem.sourceCapturedAt = incomingItem.sourceCapturedAt
 
       if let sourceApp = incomingItem.sourceApp {
         existingItem.sourceApp = sourceApp
@@ -127,6 +139,10 @@ public final class ClipboardHistoryStore: ObservableObject {
 
       if !incomingItem.fileURLs.isEmpty {
         existingItem.fileURLs = incomingItem.fileURLs
+      }
+
+      if !incomingItem.richTextRepresentations.isEmpty {
+        existingItem.richTextRepresentations = incomingItem.richTextRepresentations
       }
 
       if incomingItem.imageData != nil {
