@@ -5,6 +5,7 @@ struct PreferencesView: View {
   @ObservedObject var preferences: ClackPreferences
   @ObservedObject var store: ClipboardHistoryStore
 
+  @StateObject private var launchAtLoginController = LaunchAtLoginController()
   @State private var selectedPane: PreferencesPane = .general
   @State private var selectedIgnorePane: IgnorePane = .applications
 
@@ -66,8 +67,7 @@ struct PreferencesView: View {
   private var generalPane: some View {
     VStack(alignment: .leading, spacing: 24) {
       VStack(alignment: .leading, spacing: 10) {
-        Toggle("Launch at login", isOn: $preferences.launchAtLogin)
-          .disabled(true)
+        Toggle("Launch at login", isOn: launchAtLoginBinding)
         Toggle("Check for updates automatically", isOn: $preferences.checkForUpdatesAutomatically)
           .disabled(true)
 
@@ -76,6 +76,16 @@ struct PreferencesView: View {
       }
       .toggleStyle(.checkbox)
       .padding(.leading, 110)
+      .onAppear {
+        launchAtLoginController.sync(preferences: preferences)
+      }
+
+      if let lastError = launchAtLoginController.lastError {
+        Text(lastError)
+          .font(.callout)
+          .foregroundStyle(.red)
+          .padding(.leading, 110)
+      }
 
       PreferenceDivider()
 
@@ -376,6 +386,15 @@ struct PreferencesView: View {
       get: { preferences.searchFieldVisibility != .never },
       set: { isOn in
         preferences.searchFieldVisibility = isOn ? .always : .never
+      }
+    )
+  }
+
+  private var launchAtLoginBinding: Binding<Bool> {
+    Binding(
+      get: { preferences.launchAtLogin },
+      set: { isEnabled in
+        launchAtLoginController.setEnabled(isEnabled, preferences: preferences)
       }
     )
   }
