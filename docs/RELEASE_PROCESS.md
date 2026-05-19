@@ -18,10 +18,11 @@ Early releases may use `0.x.y` while the product is still changing quickly.
 2. Update `CHANGELOG.md`.
 3. Build the app for macOS with `./scripts/build_app.sh`.
 4. Confirm the app artifact is Universal 2 when supported.
-5. Sign and notarize the app when credentials are available.
-6. Generate checksums for downloadable artifacts.
-7. Create a GitHub Release with release notes and artifacts.
-8. Update the website download link.
+5. Tag the release with `vX.Y.Z` to create a draft GitHub Release.
+6. Sign and notarize the app when credentials are available.
+7. Replace the draft artifact if signing changes it.
+8. Publish the release notes and artifacts.
+9. Update the website download link.
 
 ## Distribution
 
