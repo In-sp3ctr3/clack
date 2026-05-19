@@ -68,11 +68,6 @@ struct PreferencesView: View {
     VStack(alignment: .leading, spacing: 24) {
       VStack(alignment: .leading, spacing: 10) {
         Toggle("Launch at login", isOn: launchAtLoginBinding)
-        Toggle("Check for updates automatically", isOn: $preferences.checkForUpdatesAutomatically)
-          .disabled(true)
-
-        Button("Check now") {}
-          .disabled(true)
 
         Text("Open shortcut: Shift-Command-C")
           .font(.callout)
@@ -95,8 +90,8 @@ struct PreferencesView: View {
 
       VStack(alignment: .leading, spacing: 12) {
         ShortcutRow(title: "Open", shortcut: "⇧⌘C")
-        ShortcutRow(title: "Pin", shortcut: "⌥P")
-        ShortcutRow(title: "Delete", shortcut: "⌥⌫")
+        ShortcutRow(title: "Pin", shortcut: "⌘P")
+        ShortcutRow(title: "Delete", shortcut: "⌘⌫")
       }
 
       PreferenceDivider()
@@ -118,26 +113,10 @@ struct PreferencesView: View {
       HStack(alignment: .top, spacing: 12) {
         PreferenceLabel("Behavior")
 
-        VStack(alignment: .leading, spacing: 10) {
-          Toggle("Paste automatically", isOn: .constant(false))
-            .disabled(true)
-          Toggle("Paste without formatting", isOn: .constant(false))
-            .disabled(true)
-
-          Text("Selecting an item copies it back to the clipboard.")
-            .font(.callout)
-            .foregroundStyle(.secondary)
-        }
-        .toggleStyle(.checkbox)
+        Text("Selecting an item copies it back to the clipboard.")
+          .font(.callout)
+          .foregroundStyle(.secondary)
       }
-
-      PreferenceDivider()
-
-      Button("Notifications and sounds") {}
-        .buttonStyle(.plain)
-        .foregroundStyle(.blue)
-        .padding(.leading, 110)
-        .disabled(true)
     }
     .preferencePaneWidth()
   }
@@ -148,13 +127,9 @@ struct PreferencesView: View {
         PreferenceLabel("Save")
 
         VStack(alignment: .leading, spacing: 8) {
-          Toggle("Files", isOn: $preferences.saveFiles)
-            .disabled(true)
-          Toggle("Images", isOn: $preferences.saveImages)
-            .disabled(true)
           Toggle("Text", isOn: $preferences.saveText)
 
-          Text("Choose which copied content Clack stores.")
+          Text("Clack stores copied text in this alpha.")
             .font(.callout)
             .foregroundStyle(.secondary)
         }
@@ -208,18 +183,12 @@ struct PreferencesView: View {
   private var appearancePane: some View {
     VStack(alignment: .leading, spacing: 24) {
       VStack(alignment: .leading, spacing: 12) {
-        PreferencePickerRow("Popup at", selection: $preferences.popupLocation, values: PopupLocation.allCases)
         PreferencePickerRow("Pin to", selection: $preferences.pinLocation, values: PinLocation.allCases)
-        NumberRow(title: "Image height", value: $preferences.imageHeight, range: 16...240, step: 4)
-        NumberRow(title: "Preview delay", value: $preferences.previewDelayMilliseconds, range: 0...5_000, step: 100)
-        PreferencePickerRow("Highlight matches", selection: $preferences.highlightStyle, values: HighlightStyle.allCases)
       }
 
       PreferenceDivider()
 
       VStack(alignment: .leading, spacing: 10) {
-        Toggle("Show special symbols", isOn: $preferences.showSpecialSymbols)
-
         HStack {
           Toggle("Show menu icon", isOn: $preferences.showMenuIcon)
 
@@ -247,7 +216,7 @@ struct PreferencesView: View {
         }
 
         Toggle("Show title before search field", isOn: $preferences.showTitleBeforeSearchField)
-        Toggle("Show application icons", isOn: $preferences.showApplicationIcons)
+        Toggle("Show item icons", isOn: $preferences.showApplicationIcons)
         Toggle("Show footer", isOn: $preferences.showFooter)
       }
       .toggleStyle(.checkbox)
@@ -289,7 +258,7 @@ struct PreferencesView: View {
 
       Spacer(minLength: 18)
 
-      Text("Pinned items stay in history when clearing unpinned items. Only plain text can be changed in this version.")
+      Text("Pinned items stay in history when clearing unpinned items.")
         .font(.callout)
         .foregroundStyle(.secondary)
     }
