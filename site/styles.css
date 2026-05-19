@@ -121,6 +121,33 @@ h1 {
   background: white;
 }
 
+.install-command {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  max-width: 560px;
+  margin-top: 18px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+}
+
+.install-command span {
+  color: var(--green);
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.install-command code {
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 14px;
+}
+
 .release-note {
   max-width: 520px;
   margin-top: 18px;
@@ -240,5 +267,16 @@ h1 {
 
   h1 {
     font-size: 56px;
+  }
+}
+
+@media (max-width: 480px) {
+  .install-command span,
+  .install-command code {
+    width: 100%;
+  }
+
+  .install-command code {
+    font-size: 12px;
   }
 }
