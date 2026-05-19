@@ -6,6 +6,7 @@ final class PasteboardMonitor {
   private let pasteboard: NSPasteboard
   private let store: ClipboardHistoryStore
   private let preferences: ClackPreferences
+  private let sourceTracker = ApplicationActivityTracker()
   private var timer: Timer?
   private var lastChangeCount: Int
   private var ignoredChangeCount: Int?
@@ -23,12 +24,17 @@ final class PasteboardMonitor {
 
   deinit {
     timer?.invalidate()
+    MainActor.assumeIsolated {
+      sourceTracker.stop()
+    }
   }
 
   func start() {
     guard timer == nil else {
       return
     }
+
+    sourceTracker.start()
 
     let timer = Timer(timeInterval: 0.55, repeats: true) { [weak self] _ in
       Task { @MainActor in
@@ -79,7 +85,8 @@ final class PasteboardMonitor {
       return
     }
 
-    let source = currentSource()
+    let observedAt = Date()
+    let source = sourceTracker.source(at: observedAt)
     guard !isIgnored(source: source, payload: payload) else {
       return
     }
@@ -90,12 +97,16 @@ final class PasteboardMonitor {
       sourceApp: source.appName,
       sourceBundleIdentifier: source.bundleIdentifier,
       sourceProcessIdentifier: source.processIdentifier,
+      sourceConfidence: source.confidence,
+      sourceCapturedAt: source.capturedAt,
       pasteboardTypes: pasteboardTypes,
       fileURLs: payload.fileURLs,
+      richTextRepresentations: payload.richTextRepresentations,
       imageData: payload.imageData,
       imageContentType: payload.imageContentType,
       imagePixelWidth: payload.imagePixelWidth,
-      imagePixelHeight: payload.imagePixelHeight
+      imagePixelHeight: payload.imagePixelHeight,
+      at: observedAt
     )
   }
 
@@ -118,6 +129,10 @@ final class PasteboardMonitor {
 
     if let imagePayload = imagePayload() {
       return preferences.saveImages ? imagePayload : nil
+    }
+
+    if let richTextPayload = richTextPayload() {
+      return preferences.saveText ? richTextPayload : nil
     }
 
     guard preferences.saveText else {
@@ -182,16 +197,68 @@ final class PasteboardMonitor {
     )
   }
 
-  private func currentSource() -> ClipboardSource {
-    guard let app = NSWorkspace.shared.frontmostApplication else {
-      return ClipboardSource()
+  private func richTextPayload() -> PasteboardPayload? {
+    let representations = richTextPasteboardTypes.compactMap { type -> ClipboardDataRepresentation? in
+      guard let data = pasteboard.data(forType: type), !data.isEmpty else {
+        return nil
+      }
+
+      return ClipboardDataRepresentation(type: type.rawValue, data: data)
     }
 
-    return ClipboardSource(
-      appName: app.localizedName,
-      bundleIdentifier: app.bundleIdentifier,
-      processIdentifier: Int(app.processIdentifier)
+    guard !representations.isEmpty else {
+      return nil
+    }
+
+    let content = pasteboard.string(forType: .string)
+      ?? plainText(from: representations)
+      ?? ""
+
+    guard !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+      return nil
+    }
+
+    return PasteboardPayload(
+      kind: .richText,
+      content: content,
+      richTextRepresentations: representations
     )
+  }
+
+  private func plainText(from representations: [ClipboardDataRepresentation]) -> String? {
+    for representation in representations {
+      guard let documentType = attributedStringDocumentType(for: representation.type) else {
+        continue
+      }
+
+      let attributedString = try? NSAttributedString(
+        data: representation.data,
+        options: [.documentType: documentType],
+        documentAttributes: nil
+      )
+
+      if
+        let string = attributedString?.string,
+        !string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+      {
+        return string
+      }
+    }
+
+    return nil
+  }
+
+  private func attributedStringDocumentType(for pasteboardType: String) -> NSAttributedString.DocumentType? {
+    switch pasteboardType {
+    case NSPasteboard.PasteboardType.rtf.rawValue:
+      .rtf
+    case NSPasteboard.PasteboardType.rtfd.rawValue:
+      .rtfd
+    case NSPasteboard.PasteboardType.html.rawValue:
+      .html
+    default:
+      nil
+    }
   }
 
   private func isIgnored(source: ClipboardSource, payload: PasteboardPayload) -> Bool {
@@ -227,7 +294,7 @@ final class PasteboardMonitor {
 
   private func isEnabled(_ kind: ClipboardItemKind) -> Bool {
     switch kind {
-    case .text:
+    case .text, .richText:
       preferences.saveText
     case .file:
       preferences.saveFiles
@@ -237,16 +304,111 @@ final class PasteboardMonitor {
   }
 }
 
+@MainActor
+private final class ApplicationActivityTracker {
+  private let workspace: NSWorkspace
+  private var observer: NSObjectProtocol?
+  private var lastApplication: NSRunningApplication?
+  private var lastActivationDate: Date?
+
+  init(workspace: NSWorkspace = .shared) {
+    self.workspace = workspace
+  }
+
+  deinit {
+    MainActor.assumeIsolated {
+      stop()
+    }
+  }
+
+  func start() {
+    guard observer == nil else {
+      return
+    }
+
+    remember(workspace.frontmostApplication, at: Date())
+
+    observer = workspace.notificationCenter.addObserver(
+      forName: NSWorkspace.didActivateApplicationNotification,
+      object: workspace,
+      queue: .main
+    ) { [weak self] notification in
+      guard
+        let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+      else {
+        return
+      }
+
+      Task { @MainActor in
+        self?.remember(app, at: Date())
+      }
+    }
+  }
+
+  func stop() {
+    guard let observer else {
+      return
+    }
+
+    workspace.notificationCenter.removeObserver(observer)
+    self.observer = nil
+  }
+
+  func source(at date: Date) -> ClipboardSource {
+    if let app = workspace.frontmostApplication {
+      remember(app, at: date)
+      return ClipboardSource(
+        appName: app.localizedName,
+        bundleIdentifier: app.bundleIdentifier,
+        processIdentifier: Int(app.processIdentifier),
+        confidence: .frontmostApplication,
+        capturedAt: date
+      )
+    }
+
+    if
+      let lastApplication,
+      let lastActivationDate,
+      date.timeIntervalSince(lastActivationDate) <= 10
+    {
+      return ClipboardSource(
+        appName: lastApplication.localizedName,
+        bundleIdentifier: lastApplication.bundleIdentifier,
+        processIdentifier: Int(lastApplication.processIdentifier),
+        confidence: .recentApplication,
+        capturedAt: lastActivationDate
+      )
+    }
+
+    return ClipboardSource(
+      confidence: .unknown,
+      capturedAt: date
+    )
+  }
+
+  private func remember(_ app: NSRunningApplication?, at date: Date) {
+    guard let app else {
+      return
+    }
+
+    lastApplication = app
+    lastActivationDate = date
+  }
+}
+
 private struct ClipboardSource {
   var appName: String?
   var bundleIdentifier: String?
   var processIdentifier: Int?
+  var confidence: ClipboardSourceConfidence = .unknown
+  var capturedAt: Date?
 }
 
 private struct PasteboardPayload {
   var kind: ClipboardItemKind
   var content: String
   var fileURLs: [String] = []
+  var richTextRepresentations: [ClipboardDataRepresentation] = []
   var imageData: Data?
   var imageContentType: String?
   var imagePixelWidth: Int?
@@ -254,10 +416,16 @@ private struct PasteboardPayload {
 
   var contentForIgnoring: String {
     switch kind {
-    case .text, .image:
+    case .text, .richText, .image:
       content
     case .file:
       (fileURLs + [content]).joined(separator: "\n")
     }
   }
 }
+
+private let richTextPasteboardTypes: [NSPasteboard.PasteboardType] = [
+  .rtf,
+  .rtfd,
+  .html
+]

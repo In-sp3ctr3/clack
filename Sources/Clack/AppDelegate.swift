@@ -160,6 +160,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     switch item.kind {
     case .text:
       pasteboard.setString(item.content, forType: .string)
+    case .richText:
+      pasteboard.setString(item.content, forType: .string)
+
+      for representation in item.richTextRepresentations {
+        pasteboard.setData(
+          representation.data,
+          forType: NSPasteboard.PasteboardType(representation.type)
+        )
+      }
     case .file:
       let urls = item.fileURLs.map { URL(fileURLWithPath: $0) as NSURL }
       if !urls.isEmpty {

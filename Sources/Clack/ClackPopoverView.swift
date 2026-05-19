@@ -330,6 +330,7 @@ private struct ClipboardRow: View {
           HStack(spacing: 8) {
             Text(item.kind.rawValue)
             Text(item.sourceApp ?? "Unknown")
+            Text(item.sourceConfidenceDescription)
             Text(relativeDateFormatter.localizedString(for: item.lastCopiedAt, relativeTo: Date()))
             Text(copyCountText)
           }
@@ -392,6 +393,7 @@ private struct ClipboardRow: View {
     var details = [
       item.kind.rawValue,
       item.sourceApp ?? "Unknown source",
+      item.sourceConfidenceDescription,
       relativeDateFormatter.localizedString(for: item.lastCopiedAt, relativeTo: Date()),
       copyCountText
     ]
@@ -449,6 +451,7 @@ private struct DetailPane: View {
           MetadataLabel(title: "Last", date: item.lastCopiedAt)
           Text(item.copyCount == 1 ? "1 copy" : "\(item.copyCount) copies")
           Text(item.kind.rawValue)
+          Text(item.sourceConfidenceDescription)
         }
         .font(.caption)
         .foregroundStyle(.secondary)
@@ -490,7 +493,7 @@ private struct DetailPane: View {
   @ViewBuilder
   private func payloadPreview(_ item: ClipboardItem) -> some View {
     switch item.kind {
-    case .text:
+    case .text, .richText:
       ScrollView {
         Text(item.content)
           .font(.system(.body, design: .monospaced))
@@ -553,6 +556,14 @@ private struct DetailPane: View {
       metadata.append("PID \(sourceProcessIdentifier)")
     }
 
+    if let sourceCapturedAt = item.sourceCapturedAt {
+      metadata.append("Source observed \(shortDateFormatter.string(from: sourceCapturedAt))")
+    }
+
+    if let richTextTypeDescription = item.richTextTypeDescription {
+      metadata.append(richTextTypeDescription)
+    }
+
     if let imageSizeDescription = item.imageSizeDescription {
       metadata.append(imageSizeDescription)
     }
@@ -568,6 +579,8 @@ private struct DetailPane: View {
     switch item.kind {
     case .text:
       "\(item.characterCount) chars"
+    case .richText:
+      byteCountFormatter.string(fromByteCount: Int64(item.byteCount))
     case .file:
       item.fileURLs.count == 1 ? "1 file" : "\(item.fileURLs.count) files"
     case .image:
@@ -580,6 +593,7 @@ private extension ClipboardItemKind {
   var systemImageName: String {
     switch self {
     case .text: "doc.text"
+    case .richText: "textformat"
     case .file: "doc"
     case .image: "photo"
     }
