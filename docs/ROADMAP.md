@@ -14,6 +14,7 @@ This roadmap is intentionally lightweight. It should guide the first releases wi
 - Package a local `.app` bundle.
 - Preferences for storage size, sorting, appearance, pins, ignore rules, launch at login, and cleanup behavior.
 - Selected-row keyboard navigation in the popover.
+- First-pass accessibility labels and hints for the popover and preferences.
 - Universal 2 macOS builds where the build environment supports both architectures.
 - Dated GitHub prereleases with checksums.
 
@@ -27,7 +28,7 @@ This roadmap is intentionally lightweight. It should guide the first releases wi
 ## Keyboard-First Usage
 
 - Configurable shortcuts for recent items.
-- Accessibility pass for VoiceOver and keyboard focus.
+- Deeper VoiceOver review with real assistive technology testing.
 
 ## Distribution
 

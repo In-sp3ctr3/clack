@@ -106,6 +106,7 @@ struct PreferencesView: View {
         }
         .labelsHidden()
         .frame(width: 250)
+        .accessibilityLabel("Search mode")
       }
 
       PreferenceDivider()
@@ -159,6 +160,8 @@ struct PreferencesView: View {
               .padding(.vertical, 6)
               .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
           }
+          .accessibilityLabel("History size")
+          .accessibilityValue("\(preferences.historyLimit) items")
 
           Text(storageEstimate)
             .foregroundStyle(.secondary)
@@ -174,6 +177,7 @@ struct PreferencesView: View {
           }
           .labelsHidden()
           .frame(width: 280)
+          .accessibilityLabel("Sort by")
         }
       }
     }
@@ -199,6 +203,7 @@ struct PreferencesView: View {
           }
           .labelsHidden()
           .frame(width: 150)
+          .accessibilityLabel("Menu icon")
         }
 
         Toggle("Show recent copy next to menu icon", isOn: $preferences.showRecentCopyInMenuBar)
@@ -213,6 +218,7 @@ struct PreferencesView: View {
           }
           .labelsHidden()
           .frame(width: 190)
+          .accessibilityLabel("Search field visibility")
         }
 
         Toggle("Show title before search field", isOn: $preferences.showTitleBeforeSearchField)
@@ -276,6 +282,7 @@ struct PreferencesView: View {
       .labelsHidden()
       .frame(width: 610)
       .frame(maxWidth: .infinity)
+      .accessibilityLabel("Ignore category")
 
       Group {
         switch selectedIgnorePane {
@@ -462,6 +469,10 @@ private struct PreferencePaneButton: View {
       )
     }
     .buttonStyle(.plain)
+    .accessibilityLabel(pane.title)
+    .accessibilityValue(isSelected ? "Selected" : "Not selected")
+    .accessibilityHint("Show \(pane.title) preferences.")
+    .accessibilityAddTraits(isSelected ? .isSelected : [])
   }
 }
 
@@ -511,6 +522,7 @@ private struct PreferencePickerRow<Value: RawRepresentable & CaseIterable & Hash
       }
       .labelsHidden()
       .frame(width: 260)
+      .accessibilityLabel(title)
     }
   }
 }
@@ -550,12 +562,16 @@ private struct ShortcutRow: View {
         Spacer()
         Image(systemName: "xmark.circle.fill")
           .foregroundStyle(.secondary)
+          .accessibilityHidden(true)
       }
       .frame(width: 210)
       .padding(.horizontal, 14)
       .padding(.vertical, 8)
       .background(.quaternary, in: Capsule())
     }
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel("\(title) shortcut")
+    .accessibilityValue(shortcut)
   }
 }
 
@@ -577,6 +593,9 @@ private struct PinnedItemRow: View {
     .padding(.horizontal, 16)
     .frame(height: 38)
     .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 10))
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(item.preview)
+    .accessibilityValue("Pinned item, Command \(min(index + 1, 9))")
   }
 }
 
@@ -596,6 +615,7 @@ private struct ListEditor: View {
             RoundedRectangle(cornerRadius: 8)
               .fill(Color(nsColor: .textBackgroundColor))
               .frame(height: 220)
+              .accessibilityHidden(true)
           } else {
             ForEach(values, id: \.self) { value in
               HStack {
@@ -608,6 +628,7 @@ private struct ListEditor: View {
                   Image(systemName: "minus")
                 }
                 .buttonStyle(.borderless)
+                .accessibilityLabel("Remove \(value)")
               }
               .padding(.horizontal, 10)
               .frame(height: 32)
@@ -621,6 +642,7 @@ private struct ListEditor: View {
       HStack(spacing: 8) {
         TextField(placeholder, text: $draft)
           .textFieldStyle(.roundedBorder)
+          .accessibilityLabel("New \(placeholder.lowercased())")
 
         Button {
           add(draft)
@@ -629,6 +651,7 @@ private struct ListEditor: View {
           Image(systemName: "plus")
         }
         .keyboardShortcut(.defaultAction)
+        .accessibilityLabel("Add \(placeholder.lowercased())")
 
         Button {
           if let last = values.last {
@@ -638,6 +661,7 @@ private struct ListEditor: View {
           Image(systemName: "minus")
         }
         .disabled(values.isEmpty)
+        .accessibilityLabel("Remove last \(placeholder.lowercased())")
       }
     }
   }

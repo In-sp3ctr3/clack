@@ -57,6 +57,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       button.target = self
       button.action = #selector(togglePopover(_:))
       button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+      button.toolTip = "Clack clipboard history"
+      button.setAccessibilityLabel("Clack clipboard history")
+      button.setAccessibilityHelp("Opens the Clack clipboard history popover.")
     }
 
     self.statusItem = statusItem

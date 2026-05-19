@@ -62,6 +62,7 @@ struct ClackPopoverView: View {
         restoreSelection: restoreSelectedItem
       )
       .frame(width: 0, height: 0)
+      .accessibilityHidden(true)
     )
     .onAppear {
       searchFocused = true
@@ -81,11 +82,14 @@ struct ClackPopoverView: View {
 
       Image(systemName: "magnifyingglass")
         .foregroundStyle(.secondary)
+        .accessibilityHidden(true)
 
       TextField("Search", text: $store.searchText)
         .textFieldStyle(.plain)
         .focused($searchFocused)
         .onSubmit(restoreSelectedItem)
+        .accessibilityLabel("Search clipboard history")
+        .accessibilityHint("Type to filter saved clipboard items. Press Return to restore the selected item.")
 
       if !store.searchText.isEmpty {
         Button {
@@ -95,6 +99,7 @@ struct ClackPopoverView: View {
         }
         .buttonStyle(.plain)
         .foregroundStyle(.secondary)
+        .accessibilityLabel("Clear search")
         .help("Clear search")
       }
     }
@@ -173,6 +178,7 @@ struct ClackPopoverView: View {
       }
       .keyboardShortcut("k", modifiers: [.command, .shift])
       .disabled(store.items.allSatisfy(\.isPinned))
+      .accessibilityHint("Clears every unpinned clipboard item.")
 
       Spacer()
 
@@ -182,6 +188,8 @@ struct ClackPopoverView: View {
         Image(systemName: "gearshape")
       }
       .keyboardShortcut(",", modifiers: [.command])
+      .accessibilityLabel("Preferences")
+      .accessibilityHint("Open Clack preferences.")
       .help("Preferences")
 
       Button {
@@ -189,6 +197,8 @@ struct ClackPopoverView: View {
       } label: {
         Image(systemName: "info.circle")
       }
+      .accessibilityLabel("About Clack")
+      .accessibilityHint("Open the About window.")
       .help("About Clack")
 
       Button {
@@ -197,6 +207,8 @@ struct ClackPopoverView: View {
         Image(systemName: "power")
       }
       .keyboardShortcut("q", modifiers: [.command])
+      .accessibilityLabel("Quit Clack")
+      .accessibilityHint("Quit the Clack app.")
       .help("Quit Clack")
     }
     .padding(.horizontal, 12)
@@ -338,10 +350,37 @@ private struct ClipboardRow: View {
         delete()
       }
     }
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(item.preview)
+    .accessibilityValue(accessibilityValue)
+    .accessibilityHint("Press Return to restore this item to the clipboard.")
+    .accessibilityAddTraits(isSelected ? .isSelected : [])
   }
 
   private var copyCountText: String {
     item.copyCount == 1 ? "1 copy" : "\(item.copyCount) copies"
+  }
+
+  private var accessibilityValue: String {
+    var details = [
+      item.sourceApp ?? "Unknown source",
+      relativeDateFormatter.localizedString(for: item.lastCopiedAt, relativeTo: Date()),
+      copyCountText
+    ]
+
+    if item.isPinned {
+      details.append("Pinned")
+    }
+
+    if isSelected {
+      details.append("Selected")
+    }
+
+    if let shortcutNumber {
+      details.append("Command \(shortcutNumber)")
+    }
+
+    return details.joined(separator: ", ")
   }
 
   @ViewBuilder
@@ -369,6 +408,7 @@ private struct DetailPane: View {
         }
         .font(.caption)
         .foregroundStyle(.secondary)
+        .accessibilityElement(children: .combine)
 
         ScrollView {
           Text(item.content)
@@ -376,6 +416,7 @@ private struct DetailPane: View {
             .textSelection(.enabled)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(10)
+            .accessibilityLabel("Full clipboard content")
         }
         .frame(height: 96)
         .background(Color(nsColor: .textBackgroundColor))
@@ -388,6 +429,7 @@ private struct DetailPane: View {
         }
         .font(.caption)
         .foregroundStyle(.secondary)
+        .accessibilityElement(children: .combine)
 
         HStack {
           Button {
@@ -414,6 +456,8 @@ private struct DetailPane: View {
     }
     .padding(12)
     .frame(height: 220)
+    .accessibilityElement(children: .contain)
+    .accessibilityLabel("Selected clipboard item details")
   }
 }
 
