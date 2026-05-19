@@ -11,15 +11,14 @@ This roadmap is intentionally lightweight. It should guide the first releases wi
 - Click an item to restore it to the clipboard.
 - Clear history.
 - Quit from the menu bar.
+- Package a local `.app` bundle.
 
 ## v0.2: Workflow Polish
 
-- Pin and unpin clipboard items.
-- Delete individual items.
-- Show item details and metadata.
-- Limit stored history with a configurable cap.
-- Improve duplicate detection and copy counts.
-- Add basic preferences.
+- Add stronger source-app metadata where macOS exposes it.
+- Add ignored-app rules.
+- Improve empty states and failure messaging.
+- Add signed release artifacts.
 
 ## v0.3: Keyboard-First Usage
 
