@@ -17,6 +17,7 @@ This roadmap is intentionally lightweight. It should guide the first releases wi
 - First-pass accessibility labels and hints for the popover and preferences.
 - Universal 2 macOS builds where the build environment supports both architectures.
 - Dated GitHub prereleases with checksums.
+- DMG packaging for alpha downloads.
 
 ## Next: Workflow Polish
 
@@ -33,7 +34,6 @@ This roadmap is intentionally lightweight. It should guide the first releases wi
 ## Distribution
 
 - Signed and notarized releases if an Apple Developer account is available.
-- DMG packaging.
 - Public download page deployment.
 
 ## Later Ideas

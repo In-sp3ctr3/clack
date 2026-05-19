@@ -15,6 +15,7 @@ This project follows a simple versioned changelog format inspired by Keep a Chan
 - Added multi-pane preferences for general, storage, appearance, pins, ignore, and advanced settings.
 - Added draft release packaging for version tags.
 - Added dated GitHub prereleases for preliminary builds.
+- Added DMG packaging for local builds and GitHub prereleases.
 - Added a Vercel-ready download page scaffold.
 
 ### Changed
