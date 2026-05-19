@@ -3,37 +3,11 @@
 [![Repository Hygiene](https://github.com/In-sp3ctr3/clack/actions/workflows/repo-hygiene.yml/badge.svg)](https://github.com/In-sp3ctr3/clack/actions/workflows/repo-hygiene.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Clack is a native macOS clipboard memory tool. It lives in the menu bar, remembers what you copy, and lets you quickly search, pin, restore, or clean up clipboard items without breaking your flow.
+Clack is a native macOS clipboard history app that lives in the menu bar. It keeps copied text, formatted text, files, and images close at hand, then lets you search, pin, restore, or clear them without opening a full window.
 
-> Project status: early alpha. A preliminary macOS build is available through Homebrew and GitHub Releases, and the app can also be built from source.
+Clack is local-first by design. Clipboard contents are stored on your Mac and are not sent to a server.
 
-## Goals
-
-- Keep a searchable local history of copied text, formatted text, files, and images.
-- Restore any saved item to the macOS clipboard with one click.
-- Pin important items so they survive history cleanup.
-- Support fast keyboard-driven access to recent items.
-- Show useful metadata such as first copied, last copied, copy count, pasteboard types, source app, and source confidence.
-- Respect privacy by keeping clipboard history local by default.
-
-## macOS Experience
-
-- Menu bar app with a compact popover.
-- Search box at the top of the clipboard history.
-- Recent clipboard items listed with previews for text, formatted text, files, and images.
-- Keyboard shortcuts for the top history entries.
-- Hover/details view for expanded content and metadata.
-- Preferences, clear history, about, and quit actions.
-
-Clack will target macOS as a Universal 2 app where possible, so one release can support both Apple Silicon and Intel Macs.
-
-## Privacy
-
-Clipboard managers handle sensitive data by nature. Clack's default design principle is local-first: no clipboard contents should leave the device unless a future feature explicitly asks for user consent and documents what is shared. Text, rich text representations, file paths, and image payloads are stored locally when those storage types are enabled.
-
-If you find a privacy or security issue, please see [SECURITY.md](SECURITY.md).
-
-## Download
+## Install
 
 Install the current alpha with Homebrew:
 
@@ -41,25 +15,54 @@ Install the current alpha with Homebrew:
 brew install --cask In-sp3ctr3/tap/clack
 ```
 
-Or tap the project repository first:
+Or download the latest build from [GitHub Releases](https://github.com/In-sp3ctr3/clack/releases).
 
-```sh
-brew tap In-sp3ctr3/tap
-brew install --cask clack
+Alpha builds are unsigned and not notarized yet, so macOS may warn before opening the app. Signed and notarized releases are planned.
+
+## What It Does
+
+- Keeps a searchable clipboard history in the macOS menu bar.
+- Stores plain text, formatted text, file URLs, and images.
+- Restores saved items back to the system clipboard.
+- Pins important items so they survive cleanup.
+- Shows first copied, last copied, copy count, pasteboard types, and source confidence.
+- Provides quick keyboard access to recent items.
+- Supports ignore rules for apps, pasteboard types, and regular expressions.
+- Keeps history local unless a future feature explicitly says otherwise.
+
+## How It Works
+
+Launch Clack and use the menu bar icon to open your clipboard history. Select any item to put it back on the system clipboard, then paste it wherever you were working.
+
+Use search to narrow the list, pin items you reuse often, and clear unpinned history when it gets noisy. Preferences include storage limits, saved content types, appearance controls, ignore lists, launch at login, and cleanup behavior.
+
+Source labels are confidence-based. macOS does not expose a guaranteed origin for every pasteboard change, so Clack records whether the source came from the frontmost app, a recently active app fallback, or an unknown source.
+
+## Privacy
+
+Clipboard managers handle sensitive material by nature. Clack assumes copied data may include passwords, tokens, private messages, work content, addresses, and financial details.
+
+Current alpha storage is a local JSON file:
+
+```text
+~/Library/Application Support/Clack/history.json
 ```
 
-Download the latest alpha from [GitHub Releases](https://github.com/In-sp3ctr3/clack/releases).
+Depending on your preferences, that file can include copied text, rich text representations, file paths, image data, pasteboard type names, timestamps, pins, and source metadata. See [docs/PRIVACY_MODEL.md](docs/PRIVACY_MODEL.md) for the current privacy model.
 
-Alpha builds are unsigned and not notarized yet, so macOS may warn before opening them.
+Security issues should be reported through [SECURITY.md](SECURITY.md).
 
-## Build from Source
+## Requirements
 
-Requirements:
+- macOS 13 Ventura or newer.
+- Apple Silicon or Intel Mac.
+- Swift 6.1 or a recent Xcode toolchain for local development.
 
-- macOS 13 or newer.
-- Swift 6.1 or newer, or a recent Xcode toolchain.
+Release builds are intended to be Universal 2 where the build environment supports both Apple Silicon and Intel outputs.
 
-Run the core checks:
+## Build From Source
+
+Clone the repository, then run the core checks:
 
 ```sh
 swift run ClackCoreChecks
@@ -85,26 +88,41 @@ Regenerate the app icon:
 ./scripts/generate_app_icon.swift
 ```
 
-The packaging script creates a Universal 2 app on macOS when both Apple Silicon and Intel builds are available. Use `BUILD_UNIVERSAL=0 ./scripts/build_app.sh` for a single-architecture local build.
+For a single-architecture local build, use:
 
-## Website
+```sh
+BUILD_UNIVERSAL=0 ./scripts/build_app.sh
+```
 
-The Vercel-ready download page lives in `site/`.
+## Project Status
+
+Clack is in early alpha. The app is usable, released through GitHub and a project-owned Homebrew tap, and still changing quickly.
+
+Active priorities:
+
+- Signed and notarized releases.
+- More real-world clipboard edge case testing.
+- Better empty states and failure messages.
+- Configurable shortcuts.
+- Storage hardening before a stable release.
+
+See [docs/ROADMAP.md](docs/ROADMAP.md) and [docs/RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md) for more detail.
 
 ## Contributing
 
-This is a small project, but it should still be easy to contribute to. Start with [CONTRIBUTING.md](CONTRIBUTING.md), then open an issue or pull request.
+Contributions are welcome while the project is small and easy to shape. Good places to start:
 
-Good first contributions while the app is young:
-
-- Product feedback on the MVP scope.
-- macOS clipboard edge cases.
-- Menu bar UX suggestions.
+- macOS pasteboard edge cases.
+- Menu bar UX polish.
+- Accessibility feedback.
 - Documentation fixes.
+- Privacy and storage review.
 
-## Roadmap
+Please read [CONTRIBUTING.md](CONTRIBUTING.md), [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md), and [GOVERNANCE.md](GOVERNANCE.md) before opening a pull request.
 
-See [docs/ROADMAP.md](docs/ROADMAP.md).
+## Website
+
+The Vercel-ready download page lives in [site](site).
 
 ## License
 
