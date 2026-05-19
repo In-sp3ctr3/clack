@@ -1,6 +1,6 @@
 # Release Process
 
-Clack has no packaged app release yet. This document defines the intended release flow so the project has a clear path before the first build.
+Clack publishes preliminary macOS builds through GitHub Releases. Early artifacts are useful for testing, but they should stay marked as prereleases until signing and notarization are in place.
 
 ## Versioning
 
@@ -10,7 +10,7 @@ Use semantic versioning once releases begin:
 - `MINOR` for new user-facing features.
 - `PATCH` for fixes and small maintenance releases.
 
-Early releases may use `0.x.y` while the product is still changing quickly.
+Early releases may use `0.x.y` while the product is still changing quickly. Alpha builds should use prerelease tags such as `v0.1.0-alpha.1`.
 
 ## Release Checklist
 
@@ -18,15 +18,17 @@ Early releases may use `0.x.y` while the product is still changing quickly.
 2. Update `CHANGELOG.md`.
 3. Build the app for macOS with `./scripts/build_app.sh`.
 4. Confirm the app artifact is Universal 2 when supported.
-5. Tag the release with `vX.Y.Z` to create a draft GitHub Release.
-6. Sign and notarize the app when credentials are available.
-7. Replace the draft artifact if signing changes it.
-8. Publish the release notes and artifacts.
+5. Tag the release with `vX.Y.Z` or `vX.Y.Z-alpha.N`.
+6. The release workflow publishes a dated GitHub prerelease with dated zip and checksum assets.
+7. Sign and notarize the app when credentials are available.
+8. Replace unsigned artifacts before promoting a release out of prerelease.
 9. Update the website download link.
 
 ## Distribution
 
 GitHub Releases should be the source of truth for downloadable artifacts. The website can link to the latest release, but it should not hide the GitHub release history.
+
+Preliminary builds use the release date in both the title and artifact names, for example `Clack-0.1.0-alpha.1-2026-05-19.zip`.
 
 ## Packages
 

@@ -10,12 +10,23 @@ permissions:
 
 jobs:
   build-release:
-    name: Build draft release
+    name: Build prerelease
     runs-on: macos-latest
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
+
+      - name: Prepare release metadata
+        run: |
+          set -euo pipefail
+
+          build_date="$(date -u +%Y-%m-%d)"
+          version="${GITHUB_REF_NAME#v}"
+          asset_name="Clack-${version}-${build_date}"
+
+          echo "BUILD_DATE=$build_date" >> "$GITHUB_ENV"
+          echo "ASSET_NAME=$asset_name" >> "$GITHUB_ENV"
 
       - name: Run core checks
         run: swift run ClackCoreChecks
@@ -28,26 +39,30 @@ jobs:
           set -euo pipefail
 
           cd .build/apple
-          ditto -c -k --keepParent Clack.app Clack.zip
-          shasum -a 256 Clack.zip > Clack.zip.sha256
+          ditto -c -k --keepParent Clack.app "${ASSET_NAME}.zip"
+          shasum -a 256 "${ASSET_NAME}.zip" > "${ASSET_NAME}.zip.sha256"
 
       - name: Write release notes
         run: |
           set -euo pipefail
 
-          cat > .build/apple/release-notes.md <<'EOF'
-          Draft release for Clack.
+          cat > .build/apple/release-notes.md <<EOF
+          Preliminary alpha build.
 
-          This build is unsigned. Review, sign, notarize, and replace the artifact before publishing a public release.
+          Build date: ${BUILD_DATE}
+          Commit: ${GITHUB_SHA}
+
+          This build is unsigned and not notarized. macOS may warn before opening it.
           EOF
 
-      - name: Create draft release
+      - name: Create prerelease
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" \
-            .build/apple/Clack.zip \
-            .build/apple/Clack.zip.sha256 \
-            --draft \
-            --title "Clack $GITHUB_REF_NAME" \
+            ".build/apple/${ASSET_NAME}.zip" \
+            ".build/apple/${ASSET_NAME}.zip.sha256" \
+            --prerelease \
+            --latest=false \
+            --title "Clack ${GITHUB_REF_NAME} (${BUILD_DATE})" \
             --notes-file .build/apple/release-notes.md
