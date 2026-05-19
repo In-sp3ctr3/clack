@@ -10,6 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private let popover = NSPopover()
 
   private var monitor: PasteboardMonitor?
+  private var globalHotKeys: GlobalHotKeyController?
   private var statusItem: NSStatusItem?
   private var preferencesWindowController: NSWindowController?
   private var cancellables: Set<AnyCancellable> = []
@@ -28,6 +29,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   func applicationDidFinishLaunching(_ notification: Notification) {
     configureStatusItem()
     configurePopover()
+    configureGlobalHotKeys()
     observePreferences()
 
     let monitor = PasteboardMonitor(
@@ -138,6 +140,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         actions: actions
       )
     )
+  }
+
+  private func configureGlobalHotKeys() {
+    let globalHotKeys = GlobalHotKeyController { [weak self] in
+      self?.togglePopover(nil)
+    }
+    globalHotKeys.start()
+    self.globalHotKeys = globalHotKeys
   }
 
   private func restore(_ item: ClipboardItem) {

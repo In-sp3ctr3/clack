@@ -73,6 +73,10 @@ struct PreferencesView: View {
 
         Button("Check now") {}
           .disabled(true)
+
+        Text("Open shortcut: Shift-Command-C")
+          .font(.callout)
+          .foregroundStyle(.secondary)
       }
       .toggleStyle(.checkbox)
       .padding(.leading, 110)
