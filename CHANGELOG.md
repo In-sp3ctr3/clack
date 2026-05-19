@@ -20,3 +20,4 @@ This project follows a simple versioned changelog format inspired by Keep a Chan
 ### Changed
 
 - Aligned download copy and preferences with the current alpha behavior.
+- Added selected-row keyboard navigation in the clipboard popover.

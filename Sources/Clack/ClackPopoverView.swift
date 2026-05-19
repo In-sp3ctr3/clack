@@ -1,4 +1,5 @@
 import ClackCore
+import AppKit
 import SwiftUI
 
 struct ClackPopoverView: View {
@@ -8,7 +9,7 @@ struct ClackPopoverView: View {
   let actions: ClipboardActions
 
   @FocusState private var searchFocused: Bool
-  @State private var hoveredItemID: ClipboardItem.ID?
+  @State private var selectedItemID: ClipboardItem.ID?
 
   private var visibleItems: [ClipboardItem] {
     let filteredItems = store.items.filter {
@@ -18,9 +19,13 @@ struct ClackPopoverView: View {
     return sortedItems(filteredItems)
   }
 
+  private var visibleItemIDs: [ClipboardItem.ID] {
+    visibleItems.map(\.id)
+  }
+
   private var selectedItem: ClipboardItem? {
-    if let hoveredItemID, let hoveredItem = store.item(withID: hoveredItemID) {
-      return hoveredItem
+    if let selectedItemID, let selectedItem = visibleItems.first(where: { $0.id == selectedItemID }) {
+      return selectedItem
     }
 
     return visibleItems.first
@@ -51,8 +56,19 @@ struct ClackPopoverView: View {
     }
     .frame(width: 460, height: 620)
     .background(Color(nsColor: .windowBackgroundColor))
+    .background(
+      KeyboardNavigationMonitor(
+        moveSelection: moveSelection,
+        restoreSelection: restoreSelectedItem
+      )
+      .frame(width: 0, height: 0)
+    )
     .onAppear {
       searchFocused = true
+      syncSelectionWithVisibleItems()
+    }
+    .onChange(of: visibleItemIDs) { _ in
+      syncSelectionWithVisibleItems()
     }
   }
 
@@ -69,6 +85,7 @@ struct ClackPopoverView: View {
       TextField("Search", text: $store.searchText)
         .textFieldStyle(.plain)
         .focused($searchFocused)
+        .onSubmit(restoreSelectedItem)
 
       if !store.searchText.isEmpty {
         Button {
@@ -117,12 +134,15 @@ struct ClackPopoverView: View {
       ClipboardRow(
         item: item,
         shortcutNumber: index + 1,
+        isSelected: selectedItem?.id == item.id,
         showIcon: preferences.showApplicationIcons,
         restore: { actions.restore(item) },
         togglePin: { actions.togglePin(item) },
         delete: { actions.delete(item) },
         onHover: { isHovering in
-          hoveredItemID = isHovering ? item.id : nil
+          if isHovering {
+            selectedItemID = item.id
+          }
         }
       )
       .keyboardShortcut(KeyEquivalent(Character("\(index + 1)")), modifiers: [.command])
@@ -130,12 +150,15 @@ struct ClackPopoverView: View {
       ClipboardRow(
         item: item,
         shortcutNumber: nil,
+        isSelected: selectedItem?.id == item.id,
         showIcon: preferences.showApplicationIcons,
         restore: { actions.restore(item) },
         togglePin: { actions.togglePin(item) },
         delete: { actions.delete(item) },
         onHover: { isHovering in
-          hoveredItemID = isHovering ? item.id : nil
+          if isHovering {
+            selectedItemID = item.id
+          }
         }
       )
     }
@@ -209,11 +232,56 @@ struct ClackPopoverView: View {
       }
     }
   }
+
+  private func moveSelection(_ direction: SelectionDirection) {
+    guard !visibleItems.isEmpty else {
+      selectedItemID = nil
+      return
+    }
+
+    let currentIndex = selectedItemID.flatMap { selectedID in
+      visibleItems.firstIndex { $0.id == selectedID }
+    }
+
+    let nextIndex: Int
+    switch direction {
+    case .up:
+      nextIndex = max((currentIndex ?? visibleItems.count) - 1, 0)
+    case .down:
+      nextIndex = min((currentIndex ?? -1) + 1, visibleItems.count - 1)
+    }
+
+    selectedItemID = visibleItems[nextIndex].id
+  }
+
+  private func restoreSelectedItem() {
+    guard let selectedItem else {
+      return
+    }
+
+    actions.restore(selectedItem)
+  }
+
+  private func syncSelectionWithVisibleItems() {
+    guard !visibleItems.isEmpty else {
+      selectedItemID = nil
+      return
+    }
+
+    guard
+      let selectedItemID,
+      visibleItems.contains(where: { $0.id == selectedItemID })
+    else {
+      selectedItemID = visibleItems.first?.id
+      return
+    }
+  }
 }
 
 private struct ClipboardRow: View {
   let item: ClipboardItem
   let shortcutNumber: Int?
+  let isSelected: Bool
   let showIcon: Bool
   let restore: () -> Void
   let togglePin: () -> Void
@@ -257,6 +325,7 @@ private struct ClipboardRow: View {
       .contentShape(Rectangle())
       .padding(.horizontal, 12)
       .padding(.vertical, 9)
+      .background(rowBackground)
     }
     .buttonStyle(.plain)
     .onHover(perform: onHover)
@@ -273,6 +342,16 @@ private struct ClipboardRow: View {
 
   private var copyCountText: String {
     item.copyCount == 1 ? "1 copy" : "\(item.copyCount) copies"
+  }
+
+  @ViewBuilder
+  private var rowBackground: some View {
+    if isSelected {
+      RoundedRectangle(cornerRadius: 6)
+        .fill(Color.accentColor.opacity(0.14))
+        .padding(.horizontal, 6)
+        .padding(.vertical, 3)
+    }
   }
 }
 
@@ -344,6 +423,98 @@ private struct MetadataLabel: View {
 
   var body: some View {
     Text("\(title) \(shortDateFormatter.string(from: date))")
+  }
+}
+
+private enum SelectionDirection {
+  case up
+  case down
+}
+
+private struct KeyboardNavigationMonitor: NSViewRepresentable {
+  let moveSelection: (SelectionDirection) -> Void
+  let restoreSelection: () -> Void
+
+  func makeCoordinator() -> Coordinator {
+    Coordinator(
+      moveSelection: moveSelection,
+      restoreSelection: restoreSelection
+    )
+  }
+
+  func makeNSView(context: Context) -> NSView {
+    let view = NSView()
+    context.coordinator.view = view
+    context.coordinator.start()
+    return view
+  }
+
+  func updateNSView(_ nsView: NSView, context: Context) {
+    context.coordinator.moveSelection = moveSelection
+    context.coordinator.restoreSelection = restoreSelection
+  }
+
+  static func dismantleNSView(_ nsView: NSView, coordinator: Coordinator) {
+    coordinator.stop()
+  }
+
+  final class Coordinator {
+    weak var view: NSView?
+    var moveSelection: (SelectionDirection) -> Void
+    var restoreSelection: () -> Void
+    private var monitor: Any?
+
+    init(
+      moveSelection: @escaping (SelectionDirection) -> Void,
+      restoreSelection: @escaping () -> Void
+    ) {
+      self.moveSelection = moveSelection
+      self.restoreSelection = restoreSelection
+    }
+
+    func start() {
+      guard monitor == nil else {
+        return
+      }
+
+      monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+        self?.handle(event) ?? event
+      }
+    }
+
+    func stop() {
+      guard let monitor else {
+        return
+      }
+
+      NSEvent.removeMonitor(monitor)
+      self.monitor = nil
+    }
+
+    private func handle(_ event: NSEvent) -> NSEvent? {
+      guard view?.window?.isKeyWindow == true else {
+        return event
+      }
+
+      let blockedModifiers: NSEvent.ModifierFlags = [.command, .option, .control]
+      guard event.modifierFlags.intersection(blockedModifiers).isEmpty else {
+        return event
+      }
+
+      switch event.keyCode {
+      case 36, 76:
+        restoreSelection()
+        return nil
+      case 125:
+        moveSelection(.down)
+        return nil
+      case 126:
+        moveSelection(.up)
+        return nil
+      default:
+        return event
+      }
+    }
   }
 }
 
