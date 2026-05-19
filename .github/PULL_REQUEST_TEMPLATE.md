@@ -1,23 +1,15 @@
-## Summary
+## Brief
 
-<!-- What changed and why? -->
+What changed and why:
 
-## Type of Change
+## Check
 
-- [ ] Bug fix
-- [ ] Feature
-- [ ] Documentation
-- [ ] Maintenance
+What you ran or verified:
 
-## Testing
+## Notes
 
-<!-- What did you run or verify? -->
-
-## Privacy and Security
-
-- [ ] This change does not expose clipboard contents, secrets, or private user data.
-- [ ] This change updates docs if privacy/security behavior changed.
+Anything intentionally left out, risky, or privacy-sensitive:
 
 ## Screenshots or Recordings
 
-<!-- Add visuals for UI changes once the app exists. -->
+For UI changes:

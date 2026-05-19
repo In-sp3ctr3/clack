@@ -1,0 +1,91 @@
+name: PR Discipline
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - edited
+      - labeled
+      - unlabeled
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  brief-and-size:
+    name: Brief and size
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check PR shape
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          max_files=12
+          max_lines=400
+          max_body_chars=1200
+          min_body_chars=80
+          max_title_chars=72
+          max_commits=8
+
+          title="$(jq -r '.pull_request.title // ""' "$GITHUB_EVENT_PATH")"
+          body="$(jq -r '.pull_request.body // ""' "$GITHUB_EVENT_PATH")"
+          changed_files="$(jq -r '.pull_request.changed_files' "$GITHUB_EVENT_PATH")"
+          additions="$(jq -r '.pull_request.additions' "$GITHUB_EVENT_PATH")"
+          deletions="$(jq -r '.pull_request.deletions' "$GITHUB_EVENT_PATH")"
+          commits="$(jq -r '.pull_request.commits' "$GITHUB_EVENT_PATH")"
+          labels="$(jq -r '.pull_request.labels[].name' "$GITHUB_EVENT_PATH" | tr '\n' ',')"
+
+          total_lines=$((additions + deletions))
+          body_without_comments="$(printf '%s' "$body" | sed -E '/<!--/,/-->/d' | sed -E 's/[[:space:]]+/ /g; s/^ //; s/ $//')"
+          body_chars="${#body_without_comments}"
+
+          failed=0
+
+          if (( ${#title} > max_title_chars )); then
+            echo "PR title is ${#title} characters. Keep it at or below ${max_title_chars}."
+            failed=1
+          fi
+
+          if (( body_chars < min_body_chars )); then
+            echo "PR body is too thin. Add a short brief, check, and notes."
+            failed=1
+          fi
+
+          if (( body_chars > max_body_chars )); then
+            echo "PR body is ${body_chars} characters. Keep it under ${max_body_chars}."
+            failed=1
+          fi
+
+          if printf '%s' "$body_without_comments" | grep -Eiq '^(summary|description)$|what changed and why|todo|tbd|n/a only|stuff|various|misc|changes$'; then
+            echo "PR body still looks generic. Make the brief specific to this change."
+            failed=1
+          fi
+
+          if ! printf '%s' "$body_without_comments" | grep -Eiq 'swift|build|check|test|verified|manual|not run|n/a'; then
+            echo "PR body should say what was checked, even if the check was manual or not run."
+            failed=1
+          fi
+
+          if ! printf '%s' "$labels" | grep -q 'size: approved'; then
+            if (( changed_files > max_files )); then
+              echo "PR changes ${changed_files} files. Keep it at or below ${max_files}, or add the size: approved label."
+              failed=1
+            fi
+
+            if (( total_lines > max_lines )); then
+              echo "PR changes ${total_lines} lines. Keep it at or below ${max_lines}, or add the size: approved label."
+              failed=1
+            fi
+
+            if (( commits > max_commits )); then
+              echo "PR has ${commits} commits. Keep it at or below ${max_commits}, or add the size: approved label."
+              failed=1
+            fi
+          fi
+
+          exit "$failed"
