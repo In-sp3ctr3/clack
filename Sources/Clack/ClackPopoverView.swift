@@ -330,6 +330,7 @@ private struct ClipboardRow: View {
           HStack(spacing: 8) {
             Text(item.kind.rawValue)
             Text(item.sourceApp ?? "Unknown")
+            Text(item.sourceConfidenceDescription)
             Text(relativeDateFormatter.localizedString(for: item.lastCopiedAt, relativeTo: Date()))
             Text(copyCountText)
           }
@@ -392,6 +393,7 @@ private struct ClipboardRow: View {
     var details = [
       item.kind.rawValue,
       item.sourceApp ?? "Unknown source",
+      item.sourceConfidenceDescription,
       relativeDateFormatter.localizedString(for: item.lastCopiedAt, relativeTo: Date()),
       copyCountText
     ]
@@ -449,6 +451,7 @@ private struct DetailPane: View {
           MetadataLabel(title: "Last", date: item.lastCopiedAt)
           Text(item.copyCount == 1 ? "1 copy" : "\(item.copyCount) copies")
           Text(item.kind.rawValue)
+          Text(item.sourceConfidenceDescription)
         }
         .font(.caption)
         .foregroundStyle(.secondary)
@@ -551,6 +554,14 @@ private struct DetailPane: View {
 
     if let sourceProcessIdentifier = item.sourceProcessIdentifier {
       metadata.append("PID \(sourceProcessIdentifier)")
+    }
+
+    if let sourceCapturedAt = item.sourceCapturedAt {
+      metadata.append("Source observed \(shortDateFormatter.string(from: sourceCapturedAt))")
+    }
+
+    if let richTextTypeDescription = item.richTextTypeDescription {
+      metadata.append(richTextTypeDescription)
     }
 
     if let imageSizeDescription = item.imageSizeDescription {

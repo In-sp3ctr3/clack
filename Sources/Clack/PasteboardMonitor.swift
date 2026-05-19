@@ -6,6 +6,7 @@ final class PasteboardMonitor {
   private let pasteboard: NSPasteboard
   private let store: ClipboardHistoryStore
   private let preferences: ClackPreferences
+  private let sourceTracker = ApplicationActivityTracker()
   private var timer: Timer?
   private var lastChangeCount: Int
   private var ignoredChangeCount: Int?
@@ -23,12 +24,17 @@ final class PasteboardMonitor {
 
   deinit {
     timer?.invalidate()
+    MainActor.assumeIsolated {
+      sourceTracker.stop()
+    }
   }
 
   func start() {
     guard timer == nil else {
       return
     }
+
+    sourceTracker.start()
 
     let timer = Timer(timeInterval: 0.55, repeats: true) { [weak self] _ in
       Task { @MainActor in
@@ -79,7 +85,8 @@ final class PasteboardMonitor {
       return
     }
 
-    let source = currentSource()
+    let observedAt = Date()
+    let source = sourceTracker.source(at: observedAt)
     guard !isIgnored(source: source, payload: payload) else {
       return
     }
@@ -90,13 +97,16 @@ final class PasteboardMonitor {
       sourceApp: source.appName,
       sourceBundleIdentifier: source.bundleIdentifier,
       sourceProcessIdentifier: source.processIdentifier,
+      sourceConfidence: source.confidence,
+      sourceCapturedAt: source.capturedAt,
       pasteboardTypes: pasteboardTypes,
       fileURLs: payload.fileURLs,
       richTextRepresentations: payload.richTextRepresentations,
       imageData: payload.imageData,
       imageContentType: payload.imageContentType,
       imagePixelWidth: payload.imagePixelWidth,
-      imagePixelHeight: payload.imagePixelHeight
+      imagePixelHeight: payload.imagePixelHeight,
+      at: observedAt
     )
   }
 
@@ -251,18 +261,6 @@ final class PasteboardMonitor {
     }
   }
 
-  private func currentSource() -> ClipboardSource {
-    guard let app = NSWorkspace.shared.frontmostApplication else {
-      return ClipboardSource()
-    }
-
-    return ClipboardSource(
-      appName: app.localizedName,
-      bundleIdentifier: app.bundleIdentifier,
-      processIdentifier: Int(app.processIdentifier)
-    )
-  }
-
   private func isIgnored(source: ClipboardSource, payload: PasteboardPayload) -> Bool {
     if !isEnabled(payload.kind) {
       return true
@@ -306,10 +304,104 @@ final class PasteboardMonitor {
   }
 }
 
+@MainActor
+private final class ApplicationActivityTracker {
+  private let workspace: NSWorkspace
+  private var observer: NSObjectProtocol?
+  private var lastApplication: NSRunningApplication?
+  private var lastActivationDate: Date?
+
+  init(workspace: NSWorkspace = .shared) {
+    self.workspace = workspace
+  }
+
+  deinit {
+    MainActor.assumeIsolated {
+      stop()
+    }
+  }
+
+  func start() {
+    guard observer == nil else {
+      return
+    }
+
+    remember(workspace.frontmostApplication, at: Date())
+
+    observer = workspace.notificationCenter.addObserver(
+      forName: NSWorkspace.didActivateApplicationNotification,
+      object: workspace,
+      queue: .main
+    ) { [weak self] notification in
+      guard
+        let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+      else {
+        return
+      }
+
+      Task { @MainActor in
+        self?.remember(app, at: Date())
+      }
+    }
+  }
+
+  func stop() {
+    guard let observer else {
+      return
+    }
+
+    workspace.notificationCenter.removeObserver(observer)
+    self.observer = nil
+  }
+
+  func source(at date: Date) -> ClipboardSource {
+    if let app = workspace.frontmostApplication {
+      remember(app, at: date)
+      return ClipboardSource(
+        appName: app.localizedName,
+        bundleIdentifier: app.bundleIdentifier,
+        processIdentifier: Int(app.processIdentifier),
+        confidence: .frontmostApplication,
+        capturedAt: date
+      )
+    }
+
+    if
+      let lastApplication,
+      let lastActivationDate,
+      date.timeIntervalSince(lastActivationDate) <= 10
+    {
+      return ClipboardSource(
+        appName: lastApplication.localizedName,
+        bundleIdentifier: lastApplication.bundleIdentifier,
+        processIdentifier: Int(lastApplication.processIdentifier),
+        confidence: .recentApplication,
+        capturedAt: lastActivationDate
+      )
+    }
+
+    return ClipboardSource(
+      confidence: .unknown,
+      capturedAt: date
+    )
+  }
+
+  private func remember(_ app: NSRunningApplication?, at date: Date) {
+    guard let app else {
+      return
+    }
+
+    lastApplication = app
+    lastActivationDate = date
+  }
+}
+
 private struct ClipboardSource {
   var appName: String?
   var bundleIdentifier: String?
   var processIdentifier: Int?
+  var confidence: ClipboardSourceConfidence = .unknown
+  var capturedAt: Date?
 }
 
 private struct PasteboardPayload {
