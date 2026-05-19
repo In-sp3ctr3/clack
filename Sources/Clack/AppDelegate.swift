@@ -1,5 +1,6 @@
 import AppKit
 import ClackCore
+import Combine
 import SwiftUI
 
 @MainActor
@@ -11,6 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private var monitor: PasteboardMonitor?
   private var statusItem: NSStatusItem?
   private var preferencesWindowController: NSWindowController?
+  private var cancellables: Set<AnyCancellable> = []
 
   override init() {
     let preferences = ClackPreferences()
@@ -26,24 +28,79 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   func applicationDidFinishLaunching(_ notification: Notification) {
     configureStatusItem()
     configurePopover()
+    observePreferences()
 
-    let monitor = PasteboardMonitor(store: store)
+    let monitor = PasteboardMonitor(
+      store: store,
+      preferences: preferences
+    )
     monitor.start()
     self.monitor = monitor
+  }
+
+  func applicationWillTerminate(_ notification: Notification) {
+    if preferences.clearHistoryOnQuit {
+      store.clearAll()
+    }
+
+    if preferences.clearSystemClipboardOnQuit {
+      NSPasteboard.general.clearContents()
+    }
   }
 
   private func configureStatusItem() {
     let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
     if let button = statusItem.button {
-      button.image = NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: "Clack")
-      button.title = button.image == nil ? "Clack" : ""
       button.target = self
       button.action = #selector(togglePopover(_:))
       button.sendAction(on: [.leftMouseUp, .rightMouseUp])
     }
 
     self.statusItem = statusItem
+    updateStatusItem()
+  }
+
+  private func observePreferences() {
+    preferences.objectWillChange
+      .sink { [weak self] _ in
+        Task { @MainActor in
+          self?.updateStatusItem()
+        }
+      }
+      .store(in: &cancellables)
+
+    store.$items
+      .sink { [weak self] _ in
+        self?.updateStatusItem()
+      }
+      .store(in: &cancellables)
+  }
+
+  private func updateStatusItem() {
+    guard let button = statusItem?.button else {
+      return
+    }
+
+    if preferences.showMenuIcon {
+      let image = NSImage(
+        systemSymbolName: preferences.menuIconSymbol,
+        accessibilityDescription: "Clack"
+      ) ?? NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: "Clack")
+      button.image = image
+    } else {
+      button.image = nil
+    }
+
+    let recentCopy = preferences.showRecentCopyInMenuBar
+      ? store.items.first?.preview.prefix(28).description
+      : nil
+
+    if let recentCopy, !recentCopy.isEmpty {
+      button.title = preferences.showMenuIcon ? " \(recentCopy)" : "Clack \(recentCopy)"
+    } else {
+      button.title = preferences.showMenuIcon ? "" : "Clack"
+    }
   }
 
   private func configurePopover() {
@@ -105,12 +162,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     )
 
     let window = NSWindow(
-      contentRect: NSRect(x: 0, y: 0, width: 420, height: 260),
-      styleMask: [.titled, .closable, .miniaturizable],
+      contentRect: NSRect(x: 0, y: 0, width: 840, height: 620),
+      styleMask: [.titled, .closable, .miniaturizable, .resizable],
       backing: .buffered,
       defer: false
     )
     window.title = "Clack Preferences"
+    window.minSize = NSSize(width: 760, height: 560)
     window.center()
     window.contentViewController = NSHostingController(rootView: view)
 

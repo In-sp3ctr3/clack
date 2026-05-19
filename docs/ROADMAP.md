@@ -12,12 +12,14 @@ This roadmap is intentionally lightweight. It should guide the first releases wi
 - Clear history.
 - Quit from the menu bar.
 - Package a local `.app` bundle.
+- Add first-pass preferences screens.
 
 ## v0.2: Workflow Polish
 
 - Add stronger source-app metadata where macOS exposes it.
 - Add ignored-app rules.
 - Improve empty states and failure messaging.
+- Add editable global shortcuts.
 - Add signed release artifacts.
 
 ## v0.3: Keyboard-First Usage
