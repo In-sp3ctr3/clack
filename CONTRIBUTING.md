@@ -10,9 +10,20 @@ Thanks for helping make Clack better. This project is intentionally small, but t
 - Include screenshots or recordings for UI changes once the app exists.
 - Do not include real secrets, passwords, tokens, private clipboard data, or personal user content in issues, tests, fixtures, or screenshots.
 
-## Development Status
+## Local Development
 
-Clack is not implemented yet. Until the first app scaffold lands, contributions should focus on project setup, product direction, docs, and issue triage.
+Run the core checks:
+
+```sh
+swift run ClackCoreChecks
+```
+
+Build a local app bundle:
+
+```sh
+./scripts/build_app.sh
+open .build/apple/Clack.app
+```
 
 ## Branching
 
@@ -46,7 +57,7 @@ Use clear, sentence-style commit messages. Conventional commit prefixes are welc
 
 ## Testing
 
-Testing instructions will be added with the app scaffold. Until then, the repository hygiene workflow verifies that required project files are present and that merge conflict markers are not committed.
+Run `swift run ClackCoreChecks` before opening a pull request. The repository hygiene workflow also verifies that required project files are present and that merge conflict markers are not committed.
 
 ## Security and Privacy
 

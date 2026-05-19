@@ -16,8 +16,8 @@ Early releases may use `0.x.y` while the product is still changing quickly.
 
 1. Confirm all CI checks pass on `main`.
 2. Update `CHANGELOG.md`.
-3. Build the app for macOS.
-4. Produce a Universal 2 artifact when supported.
+3. Build the app for macOS with `./scripts/build_app.sh`.
+4. Confirm the app artifact is Universal 2 when supported.
 5. Sign and notarize the app when credentials are available.
 6. Generate checksums for downloadable artifacts.
 7. Create a GitHub Release with release notes and artifacts.

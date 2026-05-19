@@ -5,7 +5,7 @@
 
 Clack is a native macOS clipboard memory tool. It lives in the menu bar, remembers what you copy, and lets you quickly search, pin, restore, or clean up clipboard items without breaking your flow.
 
-> Project status: early planning. The public repo foundation is in place, and the app implementation is next.
+> Project status: early development. The first native menu bar build can be built from source.
 
 ## Goals
 
@@ -36,6 +36,28 @@ If you find a privacy or security issue, please see [SECURITY.md](SECURITY.md).
 ## Download
 
 There is no release yet. When Clack has its first usable build, downloads will be published through GitHub Releases and linked from the project website.
+
+## Build from Source
+
+Requirements:
+
+- macOS 13 or newer.
+- Swift 6.1 or newer, or a recent Xcode toolchain.
+
+Run the core checks:
+
+```sh
+swift run ClackCoreChecks
+```
+
+Build a local app bundle:
+
+```sh
+./scripts/build_app.sh
+open .build/apple/Clack.app
+```
+
+The packaging script creates a Universal 2 app on macOS when both Apple Silicon and Intel builds are available. Use `BUILD_UNIVERSAL=0 ./scripts/build_app.sh` for a single-architecture local build.
 
 ## Contributing
 

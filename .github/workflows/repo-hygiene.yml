@@ -55,3 +55,20 @@ jobs:
             echo "Merge conflict markers were found."
             exit 1
           fi
+
+  swift:
+    name: Swift checks
+    runs-on: macos-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Run core checks
+        run: swift run ClackCoreChecks
+
+      - name: Build app
+        run: swift build --configuration release
+
+      - name: Package app
+        run: BUILD_UNIVERSAL=0 ./scripts/build_app.sh

@@ -10,6 +10,16 @@ Clack's core job is to remember clipboard contents. That makes privacy part of t
 - Tests and fixtures should not contain real user clipboard data.
 - Users should be able to clear history.
 
+## Current Storage
+
+Clack stores clipboard history in the user's Application Support directory:
+
+```text
+~/Library/Application Support/Clack/history.json
+```
+
+The file is local JSON so the early app is easy to inspect and debug. Storage hardening, such as encryption or automatic sensitive-content filtering, should be considered before a stable release.
+
 ## Sensitive Data
 
 Users often copy passwords, tokens, private messages, addresses, financial data, and work material. Clack should assume clipboard data may be sensitive even when it looks ordinary.
