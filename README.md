@@ -9,18 +9,18 @@ Clack is a native macOS clipboard memory tool. It lives in the menu bar, remembe
 
 ## Goals
 
-- Keep a searchable local history of copied text.
+- Keep a searchable local history of copied text, files, and images.
 - Restore any saved item to the macOS clipboard with one click.
 - Pin important items so they survive history cleanup.
 - Support fast keyboard-driven access to recent items.
-- Show useful metadata such as first copied, last copied, and copy count.
+- Show useful metadata such as first copied, last copied, copy count, pasteboard types, and best-effort source app.
 - Respect privacy by keeping clipboard history local by default.
 
 ## macOS Experience
 
 - Menu bar app with a compact popover.
 - Search box at the top of the clipboard history.
-- Recent clipboard items listed with preview text.
+- Recent clipboard items listed with previews for text, files, and images.
 - Keyboard shortcuts for the top history entries.
 - Hover/details view for expanded content and metadata.
 - Preferences, clear history, about, and quit actions.
@@ -29,7 +29,7 @@ Clack will target macOS as a Universal 2 app where possible, so one release can 
 
 ## Privacy
 
-Clipboard managers handle sensitive data by nature. Clack's default design principle is local-first: no clipboard contents should leave the device unless a future feature explicitly asks for user consent and documents what is shared.
+Clipboard managers handle sensitive data by nature. Clack's default design principle is local-first: no clipboard contents should leave the device unless a future feature explicitly asks for user consent and documents what is shared. Text, file paths, and image payloads are stored locally when those storage types are enabled.
 
 If you find a privacy or security issue, please see [SECURITY.md](SECURITY.md).
 

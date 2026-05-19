@@ -156,7 +156,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private func restore(_ item: ClipboardItem) {
     let pasteboard = NSPasteboard.general
     pasteboard.clearContents()
-    pasteboard.setString(item.content, forType: .string)
+
+    switch item.kind {
+    case .text:
+      pasteboard.setString(item.content, forType: .string)
+    case .file:
+      let urls = item.fileURLs.map { URL(fileURLWithPath: $0) as NSURL }
+      if !urls.isEmpty {
+        pasteboard.writeObjects(urls)
+      }
+    case .image:
+      if
+        let imageData = item.imageData,
+        let image = NSImage(data: imageData)
+      {
+        pasteboard.writeObjects([image])
+      } else if let imageData = item.imageData {
+        pasteboard.setData(
+          imageData,
+          forType: NSPasteboard.PasteboardType(item.imageContentType ?? "public.png")
+        )
+      }
+    }
+
     monitor?.ignoreChange(count: pasteboard.changeCount)
     popover.performClose(nil)
   }

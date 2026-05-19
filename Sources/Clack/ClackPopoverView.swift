@@ -45,6 +45,7 @@ struct ClackPopoverView: View {
 
       DetailPane(
         item: selectedItem,
+        preferences: preferences,
         actions: actions
       )
 
@@ -141,6 +142,7 @@ struct ClackPopoverView: View {
         shortcutNumber: index + 1,
         isSelected: selectedItem?.id == item.id,
         showIcon: preferences.showApplicationIcons,
+        imageHeight: preferences.imageHeight,
         restore: { actions.restore(item) },
         togglePin: { actions.togglePin(item) },
         delete: { actions.delete(item) },
@@ -157,6 +159,7 @@ struct ClackPopoverView: View {
         shortcutNumber: nil,
         isSelected: selectedItem?.id == item.id,
         showIcon: preferences.showApplicationIcons,
+        imageHeight: preferences.imageHeight,
         restore: { actions.restore(item) },
         togglePin: { actions.togglePin(item) },
         delete: { actions.delete(item) },
@@ -240,7 +243,7 @@ struct ClackPopoverView: View {
       case .copyCount:
         return lhs.copyCount > rhs.copyCount
       case .content:
-        return lhs.content.localizedCaseInsensitiveCompare(rhs.content) == .orderedAscending
+        return lhs.preview.localizedCaseInsensitiveCompare(rhs.preview) == .orderedAscending
       }
     }
   }
@@ -295,6 +298,7 @@ private struct ClipboardRow: View {
   let shortcutNumber: Int?
   let isSelected: Bool
   let showIcon: Bool
+  let imageHeight: Int
   let restore: () -> Void
   let togglePin: () -> Void
   let delete: () -> Void
@@ -303,8 +307,15 @@ private struct ClipboardRow: View {
   var body: some View {
     Button(action: restore) {
       HStack(alignment: .top, spacing: 10) {
-        if showIcon || item.isPinned {
-          Image(systemName: item.isPinned ? "pin.fill" : "doc.text")
+        if let thumbnailImage {
+          Image(nsImage: thumbnailImage)
+            .resizable()
+            .scaledToFill()
+            .frame(width: thumbnailSideLength, height: thumbnailSideLength)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .accessibilityHidden(true)
+        } else if showIcon || item.isPinned {
+          Image(systemName: item.isPinned ? "pin.fill" : item.kind.systemImageName)
             .frame(width: 18)
             .foregroundStyle(item.isPinned ? .blue : .secondary)
         }
@@ -317,6 +328,7 @@ private struct ClipboardRow: View {
             .multilineTextAlignment(.leading)
 
           HStack(spacing: 8) {
+            Text(item.kind.rawValue)
             Text(item.sourceApp ?? "Unknown")
             Text(relativeDateFormatter.localizedString(for: item.lastCopiedAt, relativeTo: Date()))
             Text(copyCountText)
@@ -361,8 +373,24 @@ private struct ClipboardRow: View {
     item.copyCount == 1 ? "1 copy" : "\(item.copyCount) copies"
   }
 
+  private var thumbnailImage: NSImage? {
+    guard
+      item.kind == .image,
+      let imageData = item.imageData
+    else {
+      return nil
+    }
+
+    return NSImage(data: imageData)
+  }
+
+  private var thumbnailSideLength: CGFloat {
+    CGFloat(max(24, min(120, imageHeight)))
+  }
+
   private var accessibilityValue: String {
     var details = [
+      item.kind.rawValue,
       item.sourceApp ?? "Unknown source",
       relativeDateFormatter.localizedString(for: item.lastCopiedAt, relativeTo: Date()),
       copyCountText
@@ -396,6 +424,7 @@ private struct ClipboardRow: View {
 
 private struct DetailPane: View {
   let item: ClipboardItem?
+  let preferences: ClackPreferences
   let actions: ClipboardActions
 
   var body: some View {
@@ -404,20 +433,13 @@ private struct DetailPane: View {
         HStack(spacing: 8) {
           Label(item.sourceApp ?? "Unknown", systemImage: "app.dashed")
           Spacer()
-          Text("\(item.characterCount) chars")
+          Text(payloadCountText(item))
         }
         .font(.caption)
         .foregroundStyle(.secondary)
         .accessibilityElement(children: .combine)
 
-        ScrollView {
-          Text(item.content)
-            .font(.system(.body, design: .monospaced))
-            .textSelection(.enabled)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(10)
-            .accessibilityLabel("Full clipboard content")
-        }
+        payloadPreview(item)
         .frame(height: 96)
         .background(Color(nsColor: .textBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: 6))
@@ -426,10 +448,15 @@ private struct DetailPane: View {
           MetadataLabel(title: "First", date: item.firstCopiedAt)
           MetadataLabel(title: "Last", date: item.lastCopiedAt)
           Text(item.copyCount == 1 ? "1 copy" : "\(item.copyCount) copies")
+          Text(item.kind.rawValue)
         }
         .font(.caption)
         .foregroundStyle(.secondary)
         .accessibilityElement(children: .combine)
+
+        metadataLine(item)
+          .font(.caption)
+          .foregroundStyle(.secondary)
 
         HStack {
           Button {
@@ -458,6 +485,104 @@ private struct DetailPane: View {
     .frame(height: 220)
     .accessibilityElement(children: .contain)
     .accessibilityLabel("Selected clipboard item details")
+  }
+
+  @ViewBuilder
+  private func payloadPreview(_ item: ClipboardItem) -> some View {
+    switch item.kind {
+    case .text:
+      ScrollView {
+        Text(item.content)
+          .font(.system(.body, design: .monospaced))
+          .textSelection(.enabled)
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .padding(10)
+          .accessibilityLabel("Full clipboard content")
+      }
+    case .file:
+      ScrollView {
+        VStack(alignment: .leading, spacing: 6) {
+          ForEach(item.fileURLs, id: \.self) { path in
+            Label(URL(fileURLWithPath: path).lastPathComponent, systemImage: "doc")
+              .help(path)
+          }
+        }
+        .font(.system(.body, design: .monospaced))
+        .textSelection(.enabled)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(10)
+        .accessibilityLabel("Copied files")
+      }
+    case .image:
+      if
+        let imageData = item.imageData,
+        let image = NSImage(data: imageData)
+      {
+        Image(nsImage: image)
+          .resizable()
+          .scaledToFit()
+          .padding(8)
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
+          .accessibilityLabel("Copied image preview")
+      } else {
+        Text(item.detailText)
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
+      }
+    }
+  }
+
+  @ViewBuilder
+  private func metadataLine(_ item: ClipboardItem) -> some View {
+    let metadata = compactMetadata(for: item)
+
+    if !metadata.isEmpty {
+      Text(metadata.joined(separator: "  |  "))
+        .lineLimit(2)
+        .textSelection(.enabled)
+    }
+  }
+
+  private func compactMetadata(for item: ClipboardItem) -> [String] {
+    var metadata: [String] = []
+
+    if let sourceBundleIdentifier = item.sourceBundleIdentifier {
+      metadata.append(sourceBundleIdentifier)
+    }
+
+    if let sourceProcessIdentifier = item.sourceProcessIdentifier {
+      metadata.append("PID \(sourceProcessIdentifier)")
+    }
+
+    if let imageSizeDescription = item.imageSizeDescription {
+      metadata.append(imageSizeDescription)
+    }
+
+    if !item.pasteboardTypes.isEmpty {
+      metadata.append(item.pasteboardTypes.prefix(3).joined(separator: ", "))
+    }
+
+    return metadata
+  }
+
+  private func payloadCountText(_ item: ClipboardItem) -> String {
+    switch item.kind {
+    case .text:
+      "\(item.characterCount) chars"
+    case .file:
+      item.fileURLs.count == 1 ? "1 file" : "\(item.fileURLs.count) files"
+    case .image:
+      byteCountFormatter.string(fromByteCount: Int64(item.byteCount))
+    }
+  }
+}
+
+private extension ClipboardItemKind {
+  var systemImageName: String {
+    switch self {
+    case .text: "doc.text"
+    case .file: "doc"
+    case .image: "photo"
+    }
   }
 }
 
@@ -572,5 +697,11 @@ private let shortDateFormatter: DateFormatter = {
   let formatter = DateFormatter()
   formatter.dateStyle = .short
   formatter.timeStyle = .short
+  return formatter
+}()
+
+private let byteCountFormatter: ByteCountFormatter = {
+  let formatter = ByteCountFormatter()
+  formatter.countStyle = .file
   return formatter
 }()

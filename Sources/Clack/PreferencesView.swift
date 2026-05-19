@@ -1,4 +1,5 @@
 import ClackCore
+import AppKit
 import SwiftUI
 
 struct PreferencesView: View {
@@ -68,10 +69,11 @@ struct PreferencesView: View {
     VStack(alignment: .leading, spacing: 24) {
       VStack(alignment: .leading, spacing: 10) {
         Toggle("Launch at login", isOn: launchAtLoginBinding)
+        Toggle("Check for updates automatically", isOn: $preferences.checkForUpdatesAutomatically)
 
-        Text("Open shortcut: Shift-Command-C")
-          .font(.callout)
-          .foregroundStyle(.secondary)
+        Button("Check now") {
+          openReleasesPage()
+        }
       }
       .toggleStyle(.checkbox)
       .padding(.leading, 110)
@@ -114,9 +116,13 @@ struct PreferencesView: View {
       HStack(alignment: .top, spacing: 12) {
         PreferenceLabel("Behavior")
 
-        Text("Selecting an item copies it back to the clipboard.")
-          .font(.callout)
-          .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 6) {
+          Text("Selecting an item copies it back to the clipboard.")
+
+          Text("Image and file items are restored as native pasteboard payloads when possible.")
+            .font(.callout)
+            .foregroundStyle(.secondary)
+        }
       }
     }
     .preferencePaneWidth()
@@ -128,9 +134,11 @@ struct PreferencesView: View {
         PreferenceLabel("Save")
 
         VStack(alignment: .leading, spacing: 8) {
+          Toggle("Files", isOn: $preferences.saveFiles)
+          Toggle("Images", isOn: $preferences.saveImages)
           Toggle("Text", isOn: $preferences.saveText)
 
-          Text("Clack stores copied text in this alpha.")
+          Text("Change what types of copied content should be stored.")
             .font(.callout)
             .foregroundStyle(.secondary)
         }
@@ -187,7 +195,27 @@ struct PreferencesView: View {
   private var appearancePane: some View {
     VStack(alignment: .leading, spacing: 24) {
       VStack(alignment: .leading, spacing: 12) {
+        PreferencePickerRow("Popup at", selection: $preferences.popupLocation, values: PopupLocation.allCases)
         PreferencePickerRow("Pin to", selection: $preferences.pinLocation, values: PinLocation.allCases)
+        NumberRow(
+          title: "Image height",
+          value: Binding(
+            get: { preferences.imageHeight },
+            set: { preferences.imageHeight = max(24, min(160, $0)) }
+          ),
+          range: 24...160,
+          step: 4
+        )
+        NumberRow(
+          title: "Preview delay",
+          value: Binding(
+            get: { preferences.previewDelayMilliseconds },
+            set: { preferences.previewDelayMilliseconds = max(0, min(5_000, $0)) }
+          ),
+          range: 0...5_000,
+          step: 100
+        )
+        PreferencePickerRow("Highlight matches", selection: $preferences.highlightStyle, values: HighlightStyle.allCases)
       }
 
       PreferenceDivider()
@@ -221,8 +249,9 @@ struct PreferencesView: View {
           .accessibilityLabel("Search field visibility")
         }
 
+        Toggle("Show special symbols", isOn: $preferences.showSpecialSymbols)
         Toggle("Show title before search field", isOn: $preferences.showTitleBeforeSearchField)
-        Toggle("Show item icons", isOn: $preferences.showApplicationIcons)
+        Toggle("Show application icons", isOn: $preferences.showApplicationIcons)
         Toggle("Show footer", isOn: $preferences.showFooter)
       }
       .toggleStyle(.checkbox)
@@ -309,7 +338,7 @@ struct PreferencesView: View {
             remove: preferences.removeIgnoredPasteboardType
           )
 
-          Text("Example: \(pasteboardStringType)")
+          Text("Examples: \(pasteboardStringType), public.file-url, public.png")
             .font(.callout)
             .foregroundStyle(.secondary)
 
@@ -395,6 +424,14 @@ struct PreferencesView: View {
 
   private var pasteboardStringType: String {
     "public.utf8-plain-text"
+  }
+
+  private func openReleasesPage() {
+    guard let url = URL(string: "https://github.com/In-sp3ctr3/clack/releases") else {
+      return
+    }
+
+    NSWorkspace.shared.open(url)
   }
 }
 
@@ -586,7 +623,7 @@ private struct PinnedItemRow: View {
       Text(item.preview)
         .frame(width: 320, alignment: .leading)
         .lineLimit(1)
-      Text(item.content)
+      Text(item.detailText)
         .frame(maxWidth: .infinity, alignment: .leading)
         .lineLimit(1)
     }
