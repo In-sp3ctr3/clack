@@ -16,6 +16,7 @@ This project follows a simple versioned changelog format inspired by Keep a Chan
 - Added draft release packaging for version tags.
 - Added dated GitHub prereleases for preliminary builds.
 - Added DMG packaging for local builds and GitHub prereleases.
+- Added a custom macOS app icon.
 - Added a Vercel-ready download page scaffold.
 
 ### Changed

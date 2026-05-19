@@ -66,6 +66,12 @@ Package a local DMG:
 open .build/apple/Clack.dmg
 ```
 
+Regenerate the app icon:
+
+```sh
+./scripts/generate_app_icon.swift
+```
+
 The packaging script creates a Universal 2 app on macOS when both Apple Silicon and Intel builds are available. Use `BUILD_UNIVERSAL=0 ./scripts/build_app.sh` for a single-architecture local build.
 
 ## Website
