@@ -490,7 +490,7 @@ private struct DetailPane: View {
   @ViewBuilder
   private func payloadPreview(_ item: ClipboardItem) -> some View {
     switch item.kind {
-    case .text:
+    case .text, .richText:
       ScrollView {
         Text(item.content)
           .font(.system(.body, design: .monospaced))
@@ -568,6 +568,8 @@ private struct DetailPane: View {
     switch item.kind {
     case .text:
       "\(item.characterCount) chars"
+    case .richText:
+      byteCountFormatter.string(fromByteCount: Int64(item.byteCount))
     case .file:
       item.fileURLs.count == 1 ? "1 file" : "\(item.fileURLs.count) files"
     case .image:
@@ -580,6 +582,7 @@ private extension ClipboardItemKind {
   var systemImageName: String {
     switch self {
     case .text: "doc.text"
+    case .richText: "textformat"
     case .file: "doc"
     case .image: "photo"
     }

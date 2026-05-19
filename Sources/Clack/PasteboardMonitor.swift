@@ -92,6 +92,7 @@ final class PasteboardMonitor {
       sourceProcessIdentifier: source.processIdentifier,
       pasteboardTypes: pasteboardTypes,
       fileURLs: payload.fileURLs,
+      richTextRepresentations: payload.richTextRepresentations,
       imageData: payload.imageData,
       imageContentType: payload.imageContentType,
       imagePixelWidth: payload.imagePixelWidth,
@@ -118,6 +119,10 @@ final class PasteboardMonitor {
 
     if let imagePayload = imagePayload() {
       return preferences.saveImages ? imagePayload : nil
+    }
+
+    if let richTextPayload = richTextPayload() {
+      return preferences.saveText ? richTextPayload : nil
     }
 
     guard preferences.saveText else {
@@ -182,6 +187,70 @@ final class PasteboardMonitor {
     )
   }
 
+  private func richTextPayload() -> PasteboardPayload? {
+    let representations = richTextPasteboardTypes.compactMap { type -> ClipboardDataRepresentation? in
+      guard let data = pasteboard.data(forType: type), !data.isEmpty else {
+        return nil
+      }
+
+      return ClipboardDataRepresentation(type: type.rawValue, data: data)
+    }
+
+    guard !representations.isEmpty else {
+      return nil
+    }
+
+    let content = pasteboard.string(forType: .string)
+      ?? plainText(from: representations)
+      ?? ""
+
+    guard !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+      return nil
+    }
+
+    return PasteboardPayload(
+      kind: .richText,
+      content: content,
+      richTextRepresentations: representations
+    )
+  }
+
+  private func plainText(from representations: [ClipboardDataRepresentation]) -> String? {
+    for representation in representations {
+      guard let documentType = attributedStringDocumentType(for: representation.type) else {
+        continue
+      }
+
+      let attributedString = try? NSAttributedString(
+        data: representation.data,
+        options: [.documentType: documentType],
+        documentAttributes: nil
+      )
+
+      if
+        let string = attributedString?.string,
+        !string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+      {
+        return string
+      }
+    }
+
+    return nil
+  }
+
+  private func attributedStringDocumentType(for pasteboardType: String) -> NSAttributedString.DocumentType? {
+    switch pasteboardType {
+    case NSPasteboard.PasteboardType.rtf.rawValue:
+      .rtf
+    case NSPasteboard.PasteboardType.rtfd.rawValue:
+      .rtfd
+    case NSPasteboard.PasteboardType.html.rawValue:
+      .html
+    default:
+      nil
+    }
+  }
+
   private func currentSource() -> ClipboardSource {
     guard let app = NSWorkspace.shared.frontmostApplication else {
       return ClipboardSource()
@@ -227,7 +296,7 @@ final class PasteboardMonitor {
 
   private func isEnabled(_ kind: ClipboardItemKind) -> Bool {
     switch kind {
-    case .text:
+    case .text, .richText:
       preferences.saveText
     case .file:
       preferences.saveFiles
@@ -247,6 +316,7 @@ private struct PasteboardPayload {
   var kind: ClipboardItemKind
   var content: String
   var fileURLs: [String] = []
+  var richTextRepresentations: [ClipboardDataRepresentation] = []
   var imageData: Data?
   var imageContentType: String?
   var imagePixelWidth: Int?
@@ -254,10 +324,16 @@ private struct PasteboardPayload {
 
   var contentForIgnoring: String {
     switch kind {
-    case .text, .image:
+    case .text, .richText, .image:
       content
     case .file:
       (fileURLs + [content]).joined(separator: "\n")
     }
   }
 }
+
+private let richTextPasteboardTypes: [NSPasteboard.PasteboardType] = [
+  .rtf,
+  .rtfd,
+  .html
+]
