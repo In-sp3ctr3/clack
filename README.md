@@ -59,6 +59,13 @@ Build a local app bundle:
 open .build/apple/Clack.app
 ```
 
+Package a local DMG:
+
+```sh
+./scripts/package_dmg.sh
+open .build/apple/Clack.dmg
+```
+
 The packaging script creates a Universal 2 app on macOS when both Apple Silicon and Intel builds are available. Use `BUILD_UNIVERSAL=0 ./scripts/build_app.sh` for a single-architecture local build.
 
 ## Website

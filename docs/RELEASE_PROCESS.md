@@ -19,7 +19,7 @@ Early releases may use `0.x.y` while the product is still changing quickly. Alph
 3. Build the app for macOS with `./scripts/build_app.sh`.
 4. Confirm the app artifact is Universal 2 when supported.
 5. Tag the release with `vX.Y.Z` or `vX.Y.Z-alpha.N`.
-6. The release workflow publishes a dated GitHub prerelease with dated zip and checksum assets.
+6. The release workflow publishes a dated GitHub prerelease with dated DMG, zip, and checksum assets.
 7. Sign and notarize the app when credentials are available.
 8. Replace unsigned artifacts before promoting a release out of prerelease.
 9. Update the website download link.
@@ -28,7 +28,7 @@ Early releases may use `0.x.y` while the product is still changing quickly. Alph
 
 GitHub Releases should be the source of truth for downloadable artifacts. The website can link to the latest release, but it should not hide the GitHub release history.
 
-Preliminary builds use the release date in both the title and artifact names, for example `Clack-0.1.0-alpha.1-2026-05-19.zip`.
+Preliminary builds use the release date in both the title and artifact names, for example `Clack-0.1.0-alpha.1-2026-05-19.dmg`.
 
 ## Packages
 

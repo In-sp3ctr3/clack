@@ -34,13 +34,18 @@ jobs:
       - name: Build app bundle
         run: ./scripts/build_app.sh
 
-      - name: Archive app
+      - name: Package release assets
         run: |
           set -euo pipefail
 
           cd .build/apple
           ditto -c -k --keepParent Clack.app "${ASSET_NAME}.zip"
           shasum -a 256 "${ASSET_NAME}.zip" > "${ASSET_NAME}.zip.sha256"
+
+          cd ../..
+          DMG_PATH="$PWD/.build/apple/${ASSET_NAME}.dmg" ./scripts/package_dmg.sh
+          cd .build/apple
+          shasum -a 256 "${ASSET_NAME}.dmg" > "${ASSET_NAME}.dmg.sha256"
 
       - name: Write release notes
         run: |
@@ -60,6 +65,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" \
+            ".build/apple/${ASSET_NAME}.dmg" \
+            ".build/apple/${ASSET_NAME}.dmg.sha256" \
             ".build/apple/${ASSET_NAME}.zip" \
             ".build/apple/${ASSET_NAME}.zip.sha256" \
             --prerelease \
