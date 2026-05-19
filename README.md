@@ -59,6 +59,10 @@ open .build/apple/Clack.app
 
 The packaging script creates a Universal 2 app on macOS when both Apple Silicon and Intel builds are available. Use `BUILD_UNIVERSAL=0 ./scripts/build_app.sh` for a single-architecture local build.
 
+## Website
+
+The Vercel-ready download page lives in `site/`.
+
 ## Contributing
 
 This is a small project, but it should still be easy to contribute to. Start with [CONTRIBUTING.md](CONTRIBUTING.md), then open an issue or pull request.
