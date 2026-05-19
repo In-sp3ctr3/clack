@@ -13,6 +13,7 @@ This roadmap is intentionally lightweight. It should guide the first releases wi
 - Quit from the menu bar.
 - Package a local `.app` bundle.
 - Preferences for storage size, sorting, appearance, pins, ignore rules, launch at login, and cleanup behavior.
+- Selected-row keyboard navigation in the popover.
 - Universal 2 macOS builds where the build environment supports both architectures.
 - Dated GitHub prereleases with checksums.
 
@@ -26,7 +27,6 @@ This roadmap is intentionally lightweight. It should guide the first releases wi
 ## Keyboard-First Usage
 
 - Configurable shortcuts for recent items.
-- Better keyboard navigation in the popover.
 - Accessibility pass for VoiceOver and keyboard focus.
 
 ## Distribution
