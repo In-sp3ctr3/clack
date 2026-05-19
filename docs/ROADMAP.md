@@ -5,7 +5,7 @@ This roadmap is intentionally lightweight. It should guide the first releases wi
 ## Current Alpha
 
 - Native macOS menu bar app.
-- Watch the system pasteboard for copied text.
+- Watch the system pasteboard for copied text, file URLs, and images.
 - Store local clipboard history.
 - Show a searchable menu or popover.
 - Click an item to restore it to the clipboard.
@@ -22,7 +22,7 @@ This roadmap is intentionally lightweight. It should guide the first releases wi
 
 ## Next: Workflow Polish
 
-- Add stronger source-app metadata where macOS exposes it.
+- Improve source-app attribution where macOS exposes stronger signals.
 - Improve empty states and failure messaging.
 - Add editable global shortcuts.
 - Add signed release artifacts.
@@ -41,5 +41,5 @@ This roadmap is intentionally lightweight. It should guide the first releases wi
 
 - Optional sensitive-content rules.
 - Export/import local history.
-- Rich content support beyond plain text.
+- Rich text and formatting-aware clipboard support.
 - Better Universal Clipboard metadata where macOS makes it available.
