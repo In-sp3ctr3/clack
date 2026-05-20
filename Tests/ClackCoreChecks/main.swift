@@ -18,6 +18,7 @@ struct ClackCoreChecks {
     let checks: [Check] = [
       Check(name: "recording a copy adds a new item", run: testRecordCopyAddsNewItem),
       Check(name: "duplicate copies update the existing item", run: testDuplicateCopyUpdatesExistingItem),
+      Check(name: "restored items move to newest position", run: testRestoredItemsMoveToNewestPosition),
       Check(name: "history limit prunes old unpinned items", run: testHistoryLimitPrunesOldUnpinnedItems),
       Check(name: "pinned items survive limit and clear", run: testPinnedItemsSurviveLimitAndClear),
       Check(name: "search matches content and source app", run: testSearchMatchesContentAndSourceApp),
@@ -151,6 +152,23 @@ struct ClackCoreChecks {
     try expect(store.items.first?.firstCopiedAt == firstDate, "expected first copy date to remain stable")
     try expect(store.items.first?.lastCopiedAt == secondDate, "expected last copy date to update")
     try expect(store.items.first?.sourceApp == "Mail", "expected latest source app to update")
+  }
+
+  @MainActor
+  private static func testRestoredItemsMoveToNewestPosition() throws {
+    let store = ClipboardHistoryStore(maxStoredItems: 10, loadSavedItems: false)
+
+    guard let first = store.recordCopy("first", at: Date(timeIntervalSince1970: 100)) else {
+      throw CheckFailure(description: "expected first item")
+    }
+
+    store.recordCopy("second", at: Date(timeIntervalSince1970: 200))
+    store.markRestored(first.id, at: Date(timeIntervalSince1970: 300))
+
+    try expect(store.items.map(\.content) == ["first", "second"], "expected restored item to move to top")
+    try expect(store.items.first?.copyCount == 2, "expected restore to increment copy count")
+    try expect(store.items.first?.firstCopiedAt == Date(timeIntervalSince1970: 100), "expected first copy date to remain")
+    try expect(store.items.first?.lastCopiedAt == Date(timeIntervalSince1970: 300), "expected restored date to be latest")
   }
 
   @MainActor

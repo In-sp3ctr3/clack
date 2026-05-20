@@ -21,6 +21,7 @@ struct ClackPopoverView: View {
   @State private var previewOpenTask: Task<Void, Never>?
   @State private var previewCloseTask: Task<Void, Never>?
   @State private var searchFocusTask: Task<Void, Never>?
+  @State private var scrollTargetID: ClipboardItem.ID?
   @State private var rowRects: [ClipboardItem.ID: NSRect] = [:]
 
   private var visibleItems: [ClipboardItem] {
@@ -172,9 +173,10 @@ struct ClackPopoverView: View {
             }
           }
         }
-        .onChange(of: selectedItemID) { itemID in
+        .onChange(of: scrollTargetID) { itemID in
           if let itemID {
             proxy.scrollTo(itemID, anchor: .center)
+            scrollTargetID = nil
           }
         }
       }
@@ -291,6 +293,7 @@ struct ClackPopoverView: View {
 
     let nextItemID = visibleItems[nextIndex].id
     selectedItemID = nextItemID
+    scrollTargetID = nextItemID
 
     if !previewIsOpen {
       schedulePreviewOpen(for: nextItemID)
@@ -440,6 +443,10 @@ private struct CompactClipboardRow: View {
   var body: some View {
     Button(action: restore) {
       HStack(spacing: 10) {
+        if item.kind == .image {
+          ImageRowThumbnail(item: item)
+        }
+
         Text(rowPreview)
           .font(.system(size: 13, weight: item.isPinned ? .semibold : .regular))
           .foregroundStyle(.primary)
@@ -502,6 +509,36 @@ private struct CompactClipboardRow: View {
       Rectangle()
         .fill(Color.accentColor.opacity(0.14))
     }
+  }
+}
+
+private struct ImageRowThumbnail: View {
+  let item: ClipboardItem
+
+  var body: some View {
+    Group {
+      if
+        let imageData = item.imageData,
+        let image = NSImage(data: imageData)
+      {
+        Image(nsImage: image)
+          .resizable()
+          .scaledToFill()
+      } else {
+        Image(systemName: "photo")
+          .font(.system(size: 11, weight: .medium))
+          .foregroundStyle(.secondary)
+      }
+    }
+    .frame(width: 22, height: 22)
+    .background(Color(nsColor: .controlBackgroundColor).opacity(0.7))
+    .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+    .overlay(
+      RoundedRectangle(cornerRadius: 4, style: .continuous)
+        .stroke(Color(nsColor: .separatorColor).opacity(0.55), lineWidth: 0.5)
+    )
+    .clipped()
+    .accessibilityHidden(true)
   }
 }
 

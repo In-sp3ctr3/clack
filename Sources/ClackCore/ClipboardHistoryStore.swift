@@ -183,6 +183,20 @@ public final class ClipboardHistoryStore: ObservableObject {
     save()
   }
 
+  public func markRestored(_ itemID: ClipboardItem.ID, at date: Date = Date()) {
+    guard let index = items.firstIndex(where: { $0.id == itemID }) else {
+      return
+    }
+
+    var item = items.remove(at: index)
+    item.copyCount += 1
+    item.lastCopiedAt = date
+    items.append(item)
+    sortItems()
+    trimToLimit()
+    save()
+  }
+
   public func delete(_ itemID: ClipboardItem.ID) {
     items.removeAll { $0.id == itemID }
     save()

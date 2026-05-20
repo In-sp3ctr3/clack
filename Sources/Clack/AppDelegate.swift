@@ -161,39 +161,44 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private func restore(_ item: ClipboardItem) {
     let pasteboard = NSPasteboard.general
     pasteboard.clearContents()
+    var didWrite = false
 
     switch item.kind {
     case .text:
-      pasteboard.setString(item.content, forType: .string)
+      didWrite = pasteboard.setString(item.content, forType: .string)
     case .richText:
-      pasteboard.setString(item.content, forType: .string)
+      didWrite = pasteboard.setString(item.content, forType: .string)
 
       for representation in item.richTextRepresentations {
-        pasteboard.setData(
+        didWrite = pasteboard.setData(
           representation.data,
           forType: NSPasteboard.PasteboardType(representation.type)
-        )
+        ) || didWrite
       }
     case .file:
       let urls = item.fileURLs.map { URL(fileURLWithPath: $0) as NSURL }
       if !urls.isEmpty {
-        pasteboard.writeObjects(urls)
+        didWrite = pasteboard.writeObjects(urls)
       }
     case .image:
       if
         let imageData = item.imageData,
         let image = NSImage(data: imageData)
       {
-        pasteboard.writeObjects([image])
+        didWrite = pasteboard.writeObjects([image])
       } else if let imageData = item.imageData {
-        pasteboard.setData(
+        didWrite = pasteboard.setData(
           imageData,
           forType: NSPasteboard.PasteboardType(item.imageContentType ?? "public.png")
         )
       }
     }
 
-    monitor?.ignoreChange(count: pasteboard.changeCount)
+    if didWrite {
+      monitor?.ignoreChange(count: pasteboard.changeCount)
+      store.markRestored(item.id)
+    }
+
     closePanel()
   }
 
