@@ -5,16 +5,10 @@ import SwiftUI
 struct ClackPopoverView: View {
   static let compactContentSize = NSSize(width: 330, height: 480)
 
-  private static let expandedContentSize = NSSize(width: 588, height: 480)
+  private static let expandedContentSize = NSSize(width: 602, height: 480)
   private static let menuWidth: CGFloat = 330
-  private static let previewWidth: CGFloat = 312
-  private static let previewHeight: CGFloat = 266
-  private static let previewOverlap: CGFloat = 54
-  private static let previewMargin: CGFloat = 8
+  private static let previewWidth: CGFloat = 270
   private static let popoverHeight: CGFloat = 480
-  private static let headerHeight: CGFloat = 65
-  private static let rowHeight: CGFloat = 28
-  private static let rowStride: CGFloat = 29
 
   @ObservedObject var store: ClipboardHistoryStore
   @ObservedObject var preferences: ClackPreferences
@@ -24,8 +18,7 @@ struct ClackPopoverView: View {
 
   @FocusState private var searchFocused: Bool
   @State private var selectedItemID: ClipboardItem.ID?
-  @State private var hoveredItemID: ClipboardItem.ID?
-  @State private var detailCardIsHovered = false
+  @State private var previewIsOpen = false
 
   private var visibleItems: [ClipboardItem] {
     let filteredItems = store.items.filter {
@@ -47,51 +40,18 @@ struct ClackPopoverView: View {
     return visibleItems.first
   }
 
-  private var hoveredItem: ClipboardItem? {
-    guard let hoveredItemID else {
-      return nil
-    }
-
-    return visibleItems.first { $0.id == hoveredItemID }
-  }
-
   private var currentContentSize: NSSize {
-    hoveredItem == nil ? Self.compactContentSize : Self.expandedContentSize
-  }
-
-  private var hoveredRowCenterY: CGFloat? {
-    guard
-      let hoveredItemID,
-      let index = visibleItems.firstIndex(where: { $0.id == hoveredItemID })
-    else {
-      return nil
-    }
-
-    return Self.headerHeight + (CGFloat(index) * Self.rowStride) + (Self.rowHeight / 2)
-  }
-
-  private var detailCardTopOffset: CGFloat {
-    let anchoredOffset = (hoveredRowCenterY ?? (Self.popoverHeight / 2)) - 42
-    let maximumOffset = Self.popoverHeight - Self.previewHeight - Self.previewMargin
-    return min(max(anchoredOffset, Self.previewMargin), maximumOffset)
+    previewIsOpen && selectedItem != nil ? Self.expandedContentSize : Self.compactContentSize
   }
 
   var body: some View {
-    ZStack(alignment: .topTrailing) {
-      if let hoveredItem {
-        HoverDetailCard(item: hoveredItem)
-          .frame(width: Self.previewWidth, height: Self.previewHeight)
-          .padding(.top, detailCardTopOffset)
-          .padding(.trailing, Self.menuWidth - Self.previewOverlap)
-          .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-          .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .trailing)))
-          .onHover { isHovering in
-            detailCardIsHovered = isHovering
+    HStack(alignment: .top, spacing: 0) {
+      if previewIsOpen, let selectedItem {
+        HoverDetailCard(item: selectedItem)
+          .frame(width: Self.previewWidth, height: Self.popoverHeight)
+          .transition(.move(edge: .trailing).combined(with: .opacity))
 
-            if !isHovering {
-              clearHoveredItemAfterDelay(hoveredItem.id)
-            }
-          }
+        Divider()
       }
 
       mainMenu
@@ -101,7 +61,12 @@ struct ClackPopoverView: View {
       height: currentContentSize.height,
       alignment: .trailing
     )
-    .background(Color.clear)
+    .background(.regularMaterial)
+    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    .overlay(
+      RoundedRectangle(cornerRadius: 12, style: .continuous)
+        .stroke(Color(nsColor: .separatorColor).opacity(0.45), lineWidth: 0.5)
+    )
     .background(
       KeyboardNavigationMonitor(
         moveSelection: moveSelection,
@@ -112,16 +77,17 @@ struct ClackPopoverView: View {
       .frame(width: 0, height: 0)
       .accessibilityHidden(true)
     )
-    .animation(.easeOut(duration: 0.12), value: hoveredItemID)
+    .animation(.easeInOut(duration: 0.16), value: previewIsOpen)
     .onAppear {
       searchFocused = true
       syncSelectionWithVisibleItems()
+      previewIsOpen = false
       setContentSize(currentContentSize)
     }
     .onChange(of: visibleItemIDs) { _ in
       syncSelectionWithVisibleItems()
     }
-    .onChange(of: hoveredItemID) { _ in
+    .onChange(of: previewIsOpen) { _ in
       setContentSize(currentContentSize)
     }
   }
@@ -139,12 +105,6 @@ struct ClackPopoverView: View {
       footer
     }
     .frame(width: Self.menuWidth, height: Self.popoverHeight)
-    .background(.regularMaterial)
-    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-    .overlay(
-      RoundedRectangle(cornerRadius: 12, style: .continuous)
-        .stroke(Color(nsColor: .separatorColor).opacity(0.45), lineWidth: 0.5)
-    )
   }
 
   private var header: some View {
@@ -235,9 +195,7 @@ struct ClackPopoverView: View {
       onHover: { isHovering in
         if isHovering {
           selectedItemID = item.id
-          hoveredItemID = item.id
-        } else if hoveredItemID == item.id {
-          clearHoveredItemAfterDelay(item.id)
+          previewIsOpen = true
         }
       }
     )
@@ -359,31 +317,13 @@ struct ClackPopoverView: View {
     }
 
     actions.delete(selectedItem)
-
-    if hoveredItemID == selectedItem.id {
-      hoveredItemID = nil
-    }
-  }
-
-  private func clearHoveredItemAfterDelay(_ itemID: ClipboardItem.ID) {
-    Task { @MainActor in
-      try? await Task.sleep(for: .milliseconds(160))
-
-      if hoveredItemID == itemID && !detailCardIsHovered {
-        hoveredItemID = nil
-      }
-    }
   }
 
   private func syncSelectionWithVisibleItems() {
     guard !visibleItems.isEmpty else {
       selectedItemID = nil
-      hoveredItemID = nil
+      previewIsOpen = false
       return
-    }
-
-    if let hoveredItemID, !visibleItems.contains(where: { $0.id == hoveredItemID }) {
-      self.hoveredItemID = nil
     }
 
     guard
@@ -477,12 +417,12 @@ private struct HoverDetailCard: View {
     VStack(alignment: .leading, spacing: 0) {
       payloadPreview
         .frame(maxWidth: .infinity, alignment: .topLeading)
-        .frame(height: 104)
+        .frame(minHeight: 96, maxHeight: 170)
 
       Divider()
-        .padding(.vertical, 10)
+        .padding(.vertical, 12)
 
-      VStack(alignment: .leading, spacing: 6) {
+      VStack(alignment: .leading, spacing: 7) {
         DetailMetadataRow(title: "Application", value: item.sourceApp ?? "Unknown")
         DetailMetadataRow(title: "First time copied", value: detailDateFormatter.string(from: item.firstCopiedAt))
         DetailMetadataRow(title: "Last time copied", value: detailDateFormatter.string(from: item.lastCopiedAt))
@@ -498,19 +438,7 @@ private struct HoverDetailCard: View {
       .font(.system(size: 12))
       .foregroundStyle(.secondary)
     }
-    .padding(.leading, 12)
-    .padding(.trailing, 12)
-    .padding(.vertical, 12)
-    .background(
-      RoundedRectangle(cornerRadius: 13, style: .continuous)
-        .fill(.thinMaterial)
-    )
-    .overlay(
-      RoundedRectangle(cornerRadius: 13, style: .continuous)
-        .stroke(Color(nsColor: .separatorColor).opacity(0.42), lineWidth: 0.5)
-    )
-    .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
-    .shadow(color: .black.opacity(0.16), radius: 20, x: 0, y: 10)
+    .padding(14)
     .accessibilityElement(children: .contain)
     .accessibilityLabel("Clipboard item details")
   }
