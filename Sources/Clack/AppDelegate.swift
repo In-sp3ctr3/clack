@@ -76,6 +76,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       }
       .store(in: &cancellables)
 
+    preferences.$openShortcut
+      .sink { [weak self] shortcut in
+        self?.globalHotKeys?.update(shortcut: shortcut)
+      }
+      .store(in: &cancellables)
+
     store.$items
       .sink { [weak self] _ in
         self?.updateStatusItem()
@@ -122,8 +128,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   private func makeClipboardActions() -> ClipboardActions {
     let actions = ClipboardActions(
-      restore: { [weak self] item in
-        self?.restore(item)
+      restore: { [weak self] item, options in
+        self?.restore(item, options: options)
       },
       togglePin: { [weak self] item in
         self?.store.togglePin(item.id)
@@ -151,14 +157,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   private func configureGlobalHotKeys() {
-    let globalHotKeys = GlobalHotKeyController { [weak self] in
+    let globalHotKeys = GlobalHotKeyController(shortcut: preferences.openShortcut) { [weak self] in
       self?.togglePopover(nil)
     }
     globalHotKeys.start()
     self.globalHotKeys = globalHotKeys
   }
 
-  private func restore(_ item: ClipboardItem) {
+  private func restore(_ item: ClipboardItem, options: ClipboardRestoreOptions) {
     let pasteboard = NSPasteboard.general
     pasteboard.clearContents()
     var didWrite = false
@@ -169,11 +175,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     case .richText:
       didWrite = pasteboard.setString(item.content, forType: .string)
 
-      for representation in item.richTextRepresentations {
-        didWrite = pasteboard.setData(
-          representation.data,
-          forType: NSPasteboard.PasteboardType(representation.type)
-        ) || didWrite
+      if !options.plainTextOnly {
+        for representation in item.richTextRepresentations {
+          didWrite = pasteboard.setData(
+            representation.data,
+            forType: NSPasteboard.PasteboardType(representation.type)
+          ) || didWrite
+        }
       }
     case .file:
       let urls = item.fileURLs.map { URL(fileURLWithPath: $0) as NSURL }
@@ -200,6 +208,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     closePanel()
+
+    if didWrite, options.pasteAfterRestore {
+      PasteExecutor.pasteAfterMenuCloses()
+    }
   }
 
   private func showPreferences() {
@@ -216,13 +228,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     )
 
     let window = NSWindow(
-      contentRect: NSRect(x: 0, y: 0, width: 840, height: 620),
+      contentRect: NSRect(origin: .zero, size: PreferencesView.preferredWindowSize),
       styleMask: [.titled, .closable, .miniaturizable, .resizable],
       backing: .buffered,
       defer: false
     )
     window.title = "Clack Preferences"
-    window.minSize = NSSize(width: 760, height: 560)
+    window.minSize = PreferencesView.preferredWindowSize
     window.center()
     window.contentViewController = NSHostingController(rootView: view)
 
@@ -261,6 +273,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private func openPanel(relativeTo button: NSStatusBarButton) {
     let panel = ClackFloatingPanel(
       contentSize: ClackPopoverView.compactContentSize,
+      popupLocation: preferences.popupLocation,
       statusButton: button,
       onClose: { [weak self] in
         self?.suppressPanelOpenUntil = Date().addingTimeInterval(0.25)

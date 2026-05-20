@@ -1,4 +1,5 @@
 import Carbon
+import ClackCore
 import Foundation
 
 final class GlobalHotKeyController {
@@ -6,8 +7,13 @@ final class GlobalHotKeyController {
 
   private var eventHandler: EventHandlerRef?
   private var openHotKey: EventHotKeyRef?
+  private var shortcut: ClackKeyboardShortcut
 
-  init(onOpen: @escaping @MainActor () -> Void) {
+  init(
+    shortcut: ClackKeyboardShortcut,
+    onOpen: @escaping @MainActor () -> Void
+  ) {
+    self.shortcut = shortcut
     self.onOpen = onOpen
   }
 
@@ -35,7 +41,26 @@ final class GlobalHotKeyController {
       &eventHandler
     )
 
-    registerOpenHotKey()
+    registerOpenHotKey(shortcut)
+  }
+
+  func update(shortcut: ClackKeyboardShortcut) {
+    guard self.shortcut != shortcut else {
+      return
+    }
+
+    self.shortcut = shortcut
+
+    if let openHotKey {
+      UnregisterEventHotKey(openHotKey)
+      self.openHotKey = nil
+    }
+
+    guard eventHandler != nil else {
+      return
+    }
+
+    registerOpenHotKey(shortcut)
   }
 
   func stop() {
@@ -50,15 +75,15 @@ final class GlobalHotKeyController {
     }
   }
 
-  private func registerOpenHotKey() {
+  private func registerOpenHotKey(_ shortcut: ClackKeyboardShortcut) {
     let hotKeyID = EventHotKeyID(
       signature: Self.signature,
       id: Self.openHotKeyID
     )
 
     let status = RegisterEventHotKey(
-      UInt32(kVK_ANSI_C),
-      UInt32(cmdKey | shiftKey),
+      UInt32(shortcut.keyCode),
+      carbonModifiers(from: shortcut.modifiers),
       hotKeyID,
       GetApplicationEventTarget(),
       0,
@@ -85,6 +110,28 @@ final class GlobalHotKeyController {
 
   private static let signature = fourCharacterCode("CLCK")
   private static let openHotKeyID: UInt32 = 1
+}
+
+private func carbonModifiers(from modifiers: Int) -> UInt32 {
+  var result = UInt32(0)
+
+  if modifiers & ClackKeyboardShortcut.command != 0 {
+    result |= UInt32(cmdKey)
+  }
+
+  if modifiers & ClackKeyboardShortcut.shift != 0 {
+    result |= UInt32(shiftKey)
+  }
+
+  if modifiers & ClackKeyboardShortcut.option != 0 {
+    result |= UInt32(optionKey)
+  }
+
+  if modifiers & ClackKeyboardShortcut.control != 0 {
+    result |= UInt32(controlKey)
+  }
+
+  return result
 }
 
 private let globalHotKeyEventHandler: EventHandlerUPP = { _, event, userData in

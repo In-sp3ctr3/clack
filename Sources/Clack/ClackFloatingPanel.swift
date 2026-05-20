@@ -1,12 +1,15 @@
 import AppKit
+import ClackCore
 import SwiftUI
 
 @MainActor
 final class ClackFloatingPanel: NSPanel, NSWindowDelegate {
   private static let screenPadding: CGFloat = 8
   private static let statusBarGap: CGFloat = 6
+  private static var lastOrigin: NSPoint?
 
   private let compactContentSize: NSSize
+  private let popupLocation: PopupLocation
   private let onClose: () -> Void
   private weak var statusButton: NSStatusBarButton?
 
@@ -16,11 +19,13 @@ final class ClackFloatingPanel: NSPanel, NSWindowDelegate {
 
   init<Content: View>(
     contentSize: NSSize,
+    popupLocation: PopupLocation,
     statusButton: NSStatusBarButton?,
     onClose: @escaping () -> Void,
     rootView: Content
   ) {
     self.compactContentSize = contentSize
+    self.popupLocation = popupLocation
     self.statusButton = statusButton
     self.onClose = onClose
 
@@ -66,7 +71,7 @@ final class ClackFloatingPanel: NSPanel, NSWindowDelegate {
   func open() {
     isClosing = false
     didNotifyClose = false
-    setFrame(frame(for: compactContentSize, anchoredTo: statusButton), display: false)
+    setFrame(frame(for: compactContentSize, anchoredTo: statusButton, location: popupLocation), display: false)
     orderFrontRegardless()
     makeKey()
     isPresented = true
@@ -87,6 +92,7 @@ final class ClackFloatingPanel: NSPanel, NSWindowDelegate {
 
     isClosing = true
     isPresented = false
+    Self.lastOrigin = frame.origin
     super.close()
     notifyClose()
   }
@@ -100,17 +106,42 @@ final class ClackFloatingPanel: NSPanel, NSWindowDelegate {
     onClose()
   }
 
-  private func frame(for contentSize: NSSize, anchoredTo button: NSStatusBarButton?) -> NSRect {
+  private func frame(
+    for contentSize: NSSize,
+    anchoredTo button: NSStatusBarButton?,
+    location: PopupLocation
+  ) -> NSRect {
     let frameSize = frameRect(forContentRect: NSRect(origin: .zero, size: contentSize)).size
     let screenRect = buttonScreenRect(button)
     let visibleFrame = (button?.window?.screen ?? NSScreen.main)?.visibleFrame
       ?? NSScreen.screens.first?.visibleFrame
       ?? NSRect(x: 0, y: 0, width: frameSize.width, height: frameSize.height)
 
-    var origin = NSPoint(
-      x: screenRect.midX - frameSize.width / 2,
-      y: screenRect.minY - frameSize.height - Self.statusBarGap
-    )
+    var origin: NSPoint
+
+    switch location {
+    case .menuIcon:
+      origin = NSPoint(
+        x: screenRect.midX - frameSize.width / 2,
+        y: screenRect.minY - frameSize.height - Self.statusBarGap
+      )
+    case .cursor:
+      let cursor = NSEvent.mouseLocation
+      origin = NSPoint(
+        x: cursor.x - frameSize.width / 2,
+        y: cursor.y - 12 - frameSize.height
+      )
+    case .windowCenter, .center:
+      origin = NSPoint(
+        x: visibleFrame.midX - frameSize.width / 2,
+        y: visibleFrame.midY - frameSize.height / 2
+      )
+    case .lastPosition:
+      origin = Self.lastOrigin ?? NSPoint(
+        x: screenRect.midX - frameSize.width / 2,
+        y: screenRect.minY - frameSize.height - Self.statusBarGap
+      )
+    }
 
     origin.x = min(
       max(origin.x, visibleFrame.minX + Self.screenPadding),

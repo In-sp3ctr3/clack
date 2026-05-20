@@ -61,7 +61,9 @@ struct ClackPopoverView: View {
         moveSelection: moveSelection,
         restoreSelection: restoreSelectedItem,
         togglePinSelection: togglePinnedSelection,
-        deleteSelection: deleteSelectedItem
+        deleteSelection: deleteSelectedItem,
+        pinShortcut: preferences.pinShortcut,
+        deleteShortcut: preferences.deleteShortcut
       )
       .frame(width: 0, height: 0)
       .accessibilityHidden(true)
@@ -87,23 +89,29 @@ struct ClackPopoverView: View {
     VStack(spacing: 0) {
       header
 
-      Divider()
+      if preferences.showTitleBeforeSearchField || showsSearchField {
+        Divider()
+      }
 
       itemList
 
-      Divider()
+      if preferences.showFooter {
+        Divider()
 
-      footer
+        footer
+      }
     }
     .frame(width: Self.menuWidth, height: Self.popoverHeight)
   }
 
   private var header: some View {
     VStack(spacing: 7) {
-      Text("Clack")
-        .font(.system(size: 13, weight: .semibold))
-        .foregroundStyle(.primary)
-        .frame(maxWidth: .infinity, alignment: .center)
+      if preferences.showTitleBeforeSearchField {
+        Text("Clack")
+          .font(.system(size: 13, weight: .semibold))
+          .foregroundStyle(.primary)
+          .frame(maxWidth: .infinity, alignment: .center)
+      }
 
       if showsSearchField {
         searchBar
@@ -188,9 +196,13 @@ struct ClackPopoverView: View {
     let shortcutNumber = index < 9 ? index + 1 : nil
     let row = CompactClipboardRow(
       item: item,
+      preferences: preferences,
+      searchText: store.searchText,
       shortcutNumber: shortcutNumber,
       isSelected: selectedItem?.id == item.id,
-      restore: { actions.restore(item) },
+      restore: { modifiers in
+        actions.restore(item, restoreOptions(for: modifiers))
+      },
       onHover: { isHovering in
         handleHover(item: item, isHovering: isHovering)
       },
@@ -305,7 +317,7 @@ struct ClackPopoverView: View {
       return
     }
 
-    actions.restore(selectedItem)
+    actions.restore(selectedItem, restoreOptions(for: []))
   }
 
   private func togglePinnedSelection() {
@@ -322,6 +334,68 @@ struct ClackPopoverView: View {
     }
 
     actions.delete(selectedItem)
+  }
+
+  private func restoreOptions(for modifiers: NSEvent.ModifierFlags) -> ClipboardRestoreOptions {
+    let activeModifiers = modifiers.intersection([.command, .shift, .option, .control])
+    let command = activeModifiers.contains(.command)
+    let shift = activeModifiers.contains(.shift)
+    let option = activeModifiers.contains(.option)
+
+    if preferences.pasteAutomatically, preferences.pasteWithoutFormatting {
+      if option {
+        return ClipboardRestoreOptions()
+      }
+
+      if command && shift {
+        return ClipboardRestoreOptions(pasteAfterRestore: true)
+      }
+
+      if command {
+        return ClipboardRestoreOptions(pasteAfterRestore: true, plainTextOnly: true)
+      }
+    } else if preferences.pasteAutomatically {
+      if command && shift {
+        return ClipboardRestoreOptions(pasteAfterRestore: true, plainTextOnly: true)
+      }
+
+      if option {
+        return ClipboardRestoreOptions()
+      }
+
+      if command {
+        return ClipboardRestoreOptions(pasteAfterRestore: true)
+      }
+    } else if preferences.pasteWithoutFormatting {
+      if option && shift {
+        return ClipboardRestoreOptions(pasteAfterRestore: true)
+      }
+
+      if command {
+        return ClipboardRestoreOptions()
+      }
+
+      if option {
+        return ClipboardRestoreOptions(pasteAfterRestore: true, plainTextOnly: true)
+      }
+    } else {
+      if command && shift {
+        return ClipboardRestoreOptions(pasteAfterRestore: true, plainTextOnly: true)
+      }
+
+      if command {
+        return ClipboardRestoreOptions()
+      }
+
+      if option {
+        return ClipboardRestoreOptions(pasteAfterRestore: true)
+      }
+    }
+
+    return ClipboardRestoreOptions(
+      pasteAfterRestore: preferences.pasteAutomatically,
+      plainTextOnly: preferences.pasteAutomatically && preferences.pasteWithoutFormatting
+    )
   }
 
   private func handleHover(item: ClipboardItem, isHovering: Bool) {
@@ -434,20 +508,30 @@ struct ClackPopoverView: View {
 
 private struct CompactClipboardRow: View {
   let item: ClipboardItem
+  let preferences: ClackPreferences
+  let searchText: String
   let shortcutNumber: Int?
   let isSelected: Bool
-  let restore: () -> Void
+  let restore: (NSEvent.ModifierFlags) -> Void
   let onHover: (Bool) -> Void
   let onFrameChange: (NSRect) -> Void
 
   var body: some View {
-    Button(action: restore) {
+    Button {
+      restore(NSEvent.modifierFlagsForCurrentEvent)
+    } label: {
       HStack(spacing: 10) {
         if item.imageData != nil {
-          ImageRowThumbnail(item: item)
+          ImageRowThumbnail(item: item, size: thumbnailSize)
+        } else if preferences.showApplicationIcons, let appIcon {
+          Image(nsImage: appIcon)
+            .resizable()
+            .scaledToFit()
+            .frame(width: 18, height: 18)
+            .accessibilityHidden(true)
         }
 
-        Text(rowPreview)
+        Text(highlightedPreview)
           .font(.system(size: 13, weight: item.isPinned ? .semibold : .regular))
           .foregroundStyle(.primary)
           .lineLimit(1)
@@ -464,7 +548,7 @@ private struct CompactClipboardRow: View {
       }
       .contentShape(Rectangle())
       .padding(.horizontal, 10)
-      .frame(height: 28)
+      .frame(height: rowHeight)
       .background(rowBackground)
       .background(RowFrameReporter(onChange: onFrameChange))
     }
@@ -477,12 +561,116 @@ private struct CompactClipboardRow: View {
     .accessibilityAddTraits(isSelected ? .isSelected : [])
   }
 
+  private var rowHeight: CGFloat {
+    item.imageData == nil ? 28 : max(28, thumbnailSize + 6)
+  }
+
+  private var thumbnailSize: CGFloat {
+    min(max(CGFloat(preferences.imageHeight), 18), 64)
+  }
+
   private var rowPreview: String {
-    guard !item.preview.isEmpty else {
-      return item.kind.rawValue
+    let preview = preferences.showSpecialSymbols ? specialSymbolPreview : item.preview
+    return preview.isEmpty ? item.kind.rawValue : preview
+  }
+
+  private var specialSymbolPreview: String {
+    let source = item.kind == .text || item.kind == .richText ? item.content : item.preview
+    let marked = source
+      .replacingOccurrences(of: "\t", with: " ⇥ ")
+      .replacingOccurrences(of: "\n", with: " ↩ ")
+      .replacingOccurrences(of: "\r", with: " ↵ ")
+      .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+
+    guard marked.count > 140 else {
+      return marked
     }
 
-    return item.preview
+    return String(marked.prefix(137)) + "..."
+  }
+
+  private var highlightedPreview: AttributedString {
+    var attributed = AttributedString(rowPreview)
+
+    guard
+      preferences.highlightStyle != .none,
+      !searchText.isEmpty,
+      let range = highlightedRange(in: rowPreview, attributed: attributed)
+    else {
+      return attributed
+    }
+
+    switch preferences.highlightStyle {
+    case .bold:
+      attributed[range].inlinePresentationIntent = .stronglyEmphasized
+    case .underline:
+      attributed[range].underlineStyle = .single
+    case .none:
+      break
+    }
+
+    return attributed
+  }
+
+  private func highlightedRange(
+    in text: String,
+    attributed: AttributedString
+  ) -> Range<AttributedString.Index>? {
+    switch preferences.searchMode {
+    case .contains, .exact:
+      guard
+        let stringRange = text.range(
+          of: searchText,
+          options: [.caseInsensitive, .diacriticInsensitive]
+        )
+      else {
+        return nil
+      }
+
+      let lowerBound = AttributedString.Index(stringRange.lowerBound, within: attributed)
+      let upperBound = AttributedString.Index(stringRange.upperBound, within: attributed)
+
+      guard let lowerBound, let upperBound else {
+        return nil
+      }
+
+      return lowerBound..<upperBound
+    case .regularExpression:
+      guard
+        let expression = try? NSRegularExpression(pattern: searchText, options: [.caseInsensitive])
+      else {
+        return nil
+      }
+
+      let nsRange = NSRange(location: 0, length: (text as NSString).length)
+      guard
+        let match = expression.firstMatch(in: text, options: [], range: nsRange),
+        let stringRange = Range(match.range, in: text)
+      else {
+        return nil
+      }
+
+      let lowerBound = AttributedString.Index(stringRange.lowerBound, within: attributed)
+      let upperBound = AttributedString.Index(stringRange.upperBound, within: attributed)
+
+      guard let lowerBound, let upperBound else {
+        return nil
+      }
+
+      return lowerBound..<upperBound
+    }
+  }
+
+  private var appIcon: NSImage? {
+    guard
+      let bundleIdentifier = item.sourceBundleIdentifier,
+      let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier)
+    else {
+      return nil
+    }
+
+    return NSWorkspace.shared.icon(forFile: appURL.path)
   }
 
   private var accessibilityValue: String {
@@ -514,6 +702,7 @@ private struct CompactClipboardRow: View {
 
 private struct ImageRowThumbnail: View {
   let item: ClipboardItem
+  let size: CGFloat
 
   var body: some View {
     Group {
@@ -530,7 +719,7 @@ private struct ImageRowThumbnail: View {
           .foregroundStyle(.secondary)
       }
     }
-    .frame(width: 22, height: 22)
+    .frame(width: size, height: size)
     .background(Color(nsColor: .controlBackgroundColor).opacity(0.7))
     .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
     .overlay(
@@ -964,18 +1153,57 @@ private enum SelectionDirection {
   case down
 }
 
+private extension NSEvent {
+  static var modifierFlagsForCurrentEvent: NSEvent.ModifierFlags {
+    NSApp.currentEvent?.modifierFlags ?? NSEvent.modifierFlags
+  }
+
+  func matches(_ shortcut: ClackKeyboardShortcut) -> Bool {
+    keyCode == UInt16(shortcut.keyCode)
+      && modifierFlags.abstractShortcutModifiers == shortcut.modifiers
+  }
+}
+
+private extension NSEvent.ModifierFlags {
+  var abstractShortcutModifiers: Int {
+    var result = 0
+
+    if contains(.command) {
+      result |= ClackKeyboardShortcut.command
+    }
+
+    if contains(.shift) {
+      result |= ClackKeyboardShortcut.shift
+    }
+
+    if contains(.option) {
+      result |= ClackKeyboardShortcut.option
+    }
+
+    if contains(.control) {
+      result |= ClackKeyboardShortcut.control
+    }
+
+    return result
+  }
+}
+
 private struct KeyboardNavigationMonitor: NSViewRepresentable {
   let moveSelection: (SelectionDirection) -> Void
   let restoreSelection: () -> Void
   let togglePinSelection: () -> Void
   let deleteSelection: () -> Void
+  let pinShortcut: ClackKeyboardShortcut
+  let deleteShortcut: ClackKeyboardShortcut
 
   func makeCoordinator() -> Coordinator {
     Coordinator(
       moveSelection: moveSelection,
       restoreSelection: restoreSelection,
       togglePinSelection: togglePinSelection,
-      deleteSelection: deleteSelection
+      deleteSelection: deleteSelection,
+      pinShortcut: pinShortcut,
+      deleteShortcut: deleteShortcut
     )
   }
 
@@ -991,6 +1219,8 @@ private struct KeyboardNavigationMonitor: NSViewRepresentable {
     context.coordinator.restoreSelection = restoreSelection
     context.coordinator.togglePinSelection = togglePinSelection
     context.coordinator.deleteSelection = deleteSelection
+    context.coordinator.pinShortcut = pinShortcut
+    context.coordinator.deleteShortcut = deleteShortcut
   }
 
   static func dismantleNSView(_ nsView: NSView, coordinator: Coordinator) {
@@ -1003,18 +1233,24 @@ private struct KeyboardNavigationMonitor: NSViewRepresentable {
     var restoreSelection: () -> Void
     var togglePinSelection: () -> Void
     var deleteSelection: () -> Void
+    var pinShortcut: ClackKeyboardShortcut
+    var deleteShortcut: ClackKeyboardShortcut
     private var monitor: Any?
 
     init(
       moveSelection: @escaping (SelectionDirection) -> Void,
       restoreSelection: @escaping () -> Void,
       togglePinSelection: @escaping () -> Void,
-      deleteSelection: @escaping () -> Void
+      deleteSelection: @escaping () -> Void,
+      pinShortcut: ClackKeyboardShortcut,
+      deleteShortcut: ClackKeyboardShortcut
     ) {
       self.moveSelection = moveSelection
       self.restoreSelection = restoreSelection
       self.togglePinSelection = togglePinSelection
       self.deleteSelection = deleteSelection
+      self.pinShortcut = pinShortcut
+      self.deleteShortcut = deleteShortcut
     }
 
     func start() {
@@ -1043,12 +1279,12 @@ private struct KeyboardNavigationMonitor: NSViewRepresentable {
 
       let modifiers = event.modifierFlags.intersection([.command, .shift, .option, .control])
 
-      if modifiers == [.command], event.keyCode == 35 {
+      if event.matches(pinShortcut) {
         togglePinSelection()
         return nil
       }
 
-      if modifiers == [.command], event.keyCode == 51 || event.keyCode == 117 {
+      if event.matches(deleteShortcut) || modifiers == [.command] && event.keyCode == 117 {
         deleteSelection()
         return nil
       }
