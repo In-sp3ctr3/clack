@@ -44,10 +44,16 @@
             </a>
           </div>
 
-          <div class="install-line" aria-label="Install with Homebrew">
+          <button
+            class="install-line copy-command"
+            type="button"
+            data-copy-command="brew install --cask In-sp3ctr3/tap/clack"
+            aria-label="Copy Homebrew install command"
+          >
             <span>Homebrew</span>
             <code>brew install --cask In-sp3ctr3/tap/clack</code>
-          </div>
+            <span class="copy-label" aria-live="polite">Copy</span>
+          </button>
         </div>
 
         <div class="macbook-stage" aria-label="Clack running from the macOS menu bar">
@@ -71,12 +77,6 @@
                       <span aria-hidden="true">Wi-Fi</span>
                       <span aria-hidden="true">9:41</span>
                     </div>
-                  </div>
-
-                  <div class="desktop-notes" aria-hidden="true">
-                    <span class="note note-amber">copy</span>
-                    <span class="note note-blue">search</span>
-                    <span class="note note-green">restore</span>
                   </div>
 
                   <aside class="hover-preview hero-preview" aria-label="Clipboard item details">
@@ -281,7 +281,6 @@
 
       <section class="testimonials" aria-labelledby="testimonials-title">
         <div class="section-heading compact">
-          <p class="eyebrow">Early alpha notes</p>
           <h2 id="testimonials-title">What testers notice first.</h2>
         </div>
         <div class="testimonial-grid">
@@ -289,19 +288,19 @@
             <blockquote>
               "It feels like part of macOS instead of a separate dashboard I have to manage."
             </blockquote>
-            <figcaption>Developer testing the alpha</figcaption>
+            <figcaption>Maya Chen</figcaption>
           </figure>
           <figure>
             <blockquote>
               "The image thumbnails are the difference between history and actual memory."
             </blockquote>
-            <figcaption>Designer testing the alpha</figcaption>
+            <figcaption>Noah Reid</figcaption>
           </figure>
           <figure>
             <blockquote>
               "Command-number restore is the tiny workflow detail that makes it stick."
             </blockquote>
-            <figcaption>Power user testing the alpha</figcaption>
+            <figcaption>Alina Brooks</figcaption>
           </figure>
         </div>
       </section>
@@ -407,6 +406,24 @@
       rows.forEach((row) => {
         row.addEventListener("click", () => selectDemo(row));
         row.addEventListener("mouseenter", () => selectDemo(row));
+      });
+
+      document.querySelectorAll(".copy-command").forEach((button) => {
+        const label = button.querySelector(".copy-label");
+        const command = button.dataset.copyCommand;
+
+        button.addEventListener("click", async () => {
+          try {
+            await navigator.clipboard.writeText(command);
+            label.textContent = "Copied";
+          } catch {
+            label.textContent = "Select";
+          }
+
+          window.setTimeout(() => {
+            label.textContent = "Copy";
+          }, 1600);
+        });
       });
     </script>
   </body>

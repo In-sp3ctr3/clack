@@ -30,7 +30,7 @@ body {
   margin: 0;
   color: var(--ink);
   background:
-    linear-gradient(135deg, rgba(255, 176, 0, 0.16) 0%, rgba(255, 250, 240, 0.94) 28%, rgba(238, 248, 255, 0.9) 62%, #ffffff 100%);
+    linear-gradient(135deg, rgba(255, 176, 0, 0.2) 0%, rgba(255, 250, 240, 0.98) 30%, rgba(247, 252, 255, 0.96) 68%, #ffffff 100%);
   font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
@@ -40,21 +40,12 @@ body::before {
   z-index: -1;
   pointer-events: none;
   content: "";
-  background:
-    linear-gradient(112deg, transparent 0 22%, rgba(16, 17, 20, 0.08) 22.1%, transparent 22.3% 55%, rgba(40, 120, 255, 0.11) 55.1%, transparent 55.4%),
-    linear-gradient(68deg, transparent 0 36%, rgba(255, 176, 0, 0.12) 36.1%, transparent 36.3% 75%, rgba(22, 184, 121, 0.1) 75.1%, transparent 75.4%);
+  background: linear-gradient(180deg, rgba(255, 176, 0, 0.18), rgba(255, 176, 0, 0) 48%);
 }
 
 body::after {
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  content: "";
-  opacity: 0.26;
-  background-image: linear-gradient(rgba(16, 17, 20, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(16, 17, 20, 0.05) 1px, transparent 1px);
-  background-size: 64px 64px;
-  mask-image: linear-gradient(to bottom, black 0%, transparent 72%);
+  display: none;
+  content: none;
 }
 
 a {
@@ -144,30 +135,6 @@ p {
   text-align: center;
 }
 
-.hero::before,
-.hero::after {
-  position: absolute;
-  top: 42px;
-  width: 120px;
-  height: 120px;
-  pointer-events: none;
-  content: "";
-  border: 1px solid rgba(16, 17, 20, 0.1);
-  transform: rotate(45deg);
-}
-
-.hero::before {
-  left: 14px;
-  border-right: 0;
-  border-bottom: 0;
-}
-
-.hero::after {
-  right: 14px;
-  border-left: 0;
-  border-top: 0;
-}
-
 .hero-copy {
   position: relative;
   z-index: 2;
@@ -234,7 +201,7 @@ h1 {
   justify-content: center;
   min-height: 46px;
   padding: 0 20px;
-  border: 1px solid var(--line-strong);
+  border: 0;
   border-radius: 999px;
   font-weight: 820;
   box-shadow: 0 14px 36px rgba(16, 17, 20, 0.11);
@@ -248,13 +215,11 @@ h1 {
 
 .button.primary {
   color: #ffffff;
-  border-color: #111111;
   background: linear-gradient(180deg, #202124, #050507);
 }
 
 .button.secondary {
   color: var(--ink);
-  border-color: rgba(255, 176, 0, 0.45);
   background: rgba(255, 255, 255, 0.74);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
@@ -270,11 +235,18 @@ h1 {
   margin-top: 18px;
   padding: 11px 15px;
   color: var(--muted);
-  border: 1px solid rgba(16, 17, 20, 0.13);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.66);
+  border: 0;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 14px 42px rgba(16, 17, 20, 0.08);
+  cursor: pointer;
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
+}
+
+.install-line:focus-visible {
+  outline: 3px solid rgba(40, 120, 255, 0.28);
+  outline-offset: 3px;
 }
 
 .install-line span {
@@ -291,36 +263,51 @@ h1 {
   overflow-wrap: anywhere;
 }
 
+.copy-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 58px;
+  min-height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  color: #ffffff;
+  background: #101114;
+  font-size: 12px;
+  font-weight: 820;
+}
+
 .macbook-stage {
   position: relative;
   z-index: 1;
-  margin: 38px auto 0;
-  perspective: 1800px;
+  margin: 34px auto 0;
 }
 
 .macbook {
-  width: min(860px, 100%);
+  width: min(940px, 100%);
   margin: 0 auto;
   animation: float-device 8s ease-in-out infinite;
 }
 
 .macbook-lid {
   position: relative;
-  padding: 10px;
-  border: 1px solid #1e2634;
-  border-radius: 30px 30px 16px 16px;
+  width: 78%;
+  margin: 0 auto;
+  padding: 7px;
+  border: 0;
+  border-radius: 18px 18px 4px 4px;
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.12), transparent 26%),
-    linear-gradient(180deg, #111621, #05070b 78%);
-  box-shadow: var(--shadow-heavy);
+    linear-gradient(135deg, rgba(255, 255, 255, 0.16), transparent 28%),
+    linear-gradient(180deg, #121722, #050609 84%);
+  box-shadow: 0 34px 100px rgba(16, 17, 20, 0.24);
 }
 
 .screen {
   position: relative;
   overflow: hidden;
-  aspect-ratio: 16 / 9;
+  aspect-ratio: 16 / 10;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 22px 22px 10px 10px;
+  border-radius: 11px 11px 3px 3px;
   background: #05070b;
 }
 
@@ -348,14 +335,8 @@ h1 {
 }
 
 .desktop-scene::before {
-  position: absolute;
-  inset: 28px 0 0;
-  content: "";
-  background:
-    linear-gradient(90deg, rgba(255, 255, 255, 0.08) 1px, transparent 1px),
-    linear-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
-  background-size: 52px 52px;
-  opacity: 0.35;
+  display: none;
+  content: none;
 }
 
 .menu-bar {
@@ -445,8 +426,8 @@ h1 {
 
 .clack-menu,
 .hover-preview {
-  border: 1px solid rgba(72, 79, 88, 0.26);
-  background: rgba(246, 248, 249, 0.93);
+  border: 0;
+  background: rgba(246, 248, 249, 0.78);
   box-shadow: 0 24px 74px rgba(10, 12, 16, 0.27);
   backdrop-filter: blur(28px) saturate(1.12);
   -webkit-backdrop-filter: blur(28px) saturate(1.12);
@@ -461,10 +442,10 @@ h1 {
 
 .hero-menu {
   position: absolute;
-  top: 39px;
-  right: 34px;
+  top: 40px;
+  right: 28px;
   z-index: 6;
-  width: min(400px, 46%);
+  width: min(324px, 46%);
   animation: menu-drop 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
@@ -475,9 +456,8 @@ h1 {
   width: 24px;
   height: 24px;
   content: "";
-  border-top: 1px solid rgba(72, 79, 88, 0.26);
-  border-left: 1px solid rgba(72, 79, 88, 0.26);
-  background: rgba(246, 248, 249, 0.94);
+  border: 0;
+  background: rgba(246, 248, 249, 0.78);
   transform: rotate(45deg);
 }
 
@@ -629,31 +609,30 @@ kbd {
 
 .hero-preview {
   position: absolute;
-  top: 104px;
-  left: 34px;
+  top: 54px;
+  right: calc(46% + 40px);
   z-index: 5;
-  width: 292px;
-  padding: 14px;
+  width: 232px;
+  padding: 11px;
   animation: preview-in 430ms 80ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
 .hero-preview::after,
 .demo-preview::after {
   position: absolute;
-  top: 72px;
+  top: 38px;
   right: -9px;
   width: 18px;
   height: 18px;
   content: "";
-  border-top: 1px solid rgba(72, 79, 88, 0.22);
-  border-right: 1px solid rgba(72, 79, 88, 0.22);
-  background: rgba(246, 248, 249, 0.94);
+  border: 0;
+  background: rgba(246, 248, 249, 0.78);
   transform: rotate(45deg);
 }
 
 .preview-content {
   display: flex;
-  min-height: 106px;
+  min-height: 88px;
   align-items: flex-start;
   justify-content: flex-start;
   padding: 12px;
@@ -661,7 +640,7 @@ kbd {
   background: rgba(255, 255, 255, 0.56);
   color: #4b4f57;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  font-size: 15px;
+  font-size: 13px;
   line-height: 1.33;
 }
 
@@ -690,16 +669,17 @@ dl {
 }
 
 .hover-preview dl {
-  margin-top: 14px;
-  padding-top: 12px;
+  margin-top: 12px;
+  padding-top: 10px;
   border-top: 1px solid rgba(105, 110, 118, 0.25);
 }
 
 .hover-preview dl div {
   display: grid;
-  grid-template-columns: 118px 1fr;
-  gap: 14px;
-  padding: 4px 0;
+  grid-template-columns: 94px 1fr;
+  gap: 10px;
+  padding: 3px 0;
+  font-size: 12px;
 }
 
 dt {
@@ -711,9 +691,9 @@ dd {
 }
 
 .hover-preview p {
-  margin: 11px 0 0;
+  margin: 10px 0 0;
   color: rgba(69, 72, 78, 0.72);
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .hover-preview p + p {
@@ -722,13 +702,14 @@ dd {
 
 .macbook-base {
   position: relative;
-  width: 94%;
-  height: 28px;
-  margin: 0 auto;
-  border-radius: 0 0 52px 52px;
+  width: 96%;
+  height: 36px;
+  margin: -1px auto 0;
+  border-radius: 4px 4px 52px 52px;
   background:
-    linear-gradient(180deg, #f1f4f7 0%, #a9b4c2 42%, #53616f 100%);
+    linear-gradient(180deg, #f5f8fb 0%, #aeb9c6 46%, #596778 100%);
   box-shadow: 0 24px 48px rgba(16, 17, 20, 0.18);
+  clip-path: polygon(7% 0, 93% 0, 100% 66%, 96% 100%, 4% 100%, 0 66%);
 }
 
 .macbook-base::before {
@@ -756,7 +737,7 @@ dd {
 .proof-strip {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 1px;
+  gap: 16px;
   margin-top: 10px;
   padding-bottom: 84px;
 }
@@ -764,9 +745,10 @@ dd {
 .proof-strip article {
   min-height: 154px;
   padding: 22px;
-  border: 1px solid rgba(16, 17, 20, 0.12);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.64);
+  border: 0;
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.76);
+  box-shadow: 0 24px 60px rgba(16, 17, 20, 0.08);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
 }
@@ -825,15 +807,15 @@ dd {
 .demo-stage {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(320px, 400px) minmax(280px, 330px);
-  gap: 20px;
+  grid-template-columns: minmax(248px, 286px) minmax(320px, 400px);
+  gap: 18px;
   align-items: start;
   justify-content: center;
-  min-height: 520px;
+  min-height: 486px;
   padding: 48px;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 8px;
+  border: 0;
+  border-radius: 34px;
   background:
     linear-gradient(135deg, rgba(255, 176, 0, 0.88) 0 18%, transparent 18.2%),
     linear-gradient(150deg, #11141c 0 48%, #213755 48.2% 76%, #f6f1e5 76.2% 100%);
@@ -841,12 +823,8 @@ dd {
 }
 
 .demo-stage::before {
-  position: absolute;
-  inset: 0;
-  content: "";
-  background-image: linear-gradient(rgba(255, 255, 255, 0.09) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.09) 1px, transparent 1px);
-  background-size: 50px 50px;
-  opacity: 0.34;
+  display: none;
+  content: none;
 }
 
 .demo-menu,
@@ -856,14 +834,19 @@ dd {
 }
 
 .demo-menu {
+  grid-column: 2;
+  grid-row: 1;
   width: 400px;
   max-width: 100%;
 }
 
 .demo-preview {
-  width: 330px;
+  grid-column: 1;
+  grid-row: 1;
+  width: 286px;
   max-width: 100%;
-  padding: 14px;
+  margin-top: 36px;
+  padding: 11px;
   transform-origin: center left;
   transition: transform 180ms ease;
 }
@@ -879,16 +862,16 @@ dd {
 .feature-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 14px;
+  gap: 16px;
 }
 
 .feature-card {
   min-height: 264px;
   padding: 22px;
-  border: 1px solid rgba(16, 17, 20, 0.12);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.72);
-  box-shadow: 0 20px 58px rgba(16, 17, 20, 0.08);
+  border: 0;
+  border-radius: 30px;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 26px 72px rgba(16, 17, 20, 0.08);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
 }
@@ -935,17 +918,18 @@ dd {
 .testimonial-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
+  gap: 16px;
 }
 
 .testimonial-grid figure {
+  position: relative;
   margin: 0;
   min-height: 220px;
-  padding: 24px;
-  border: 1px solid rgba(16, 17, 20, 0.12);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.68);
-  box-shadow: 0 20px 50px rgba(16, 17, 20, 0.08);
+  padding: 24px 24px 58px;
+  border: 0;
+  border-radius: 30px;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 26px 72px rgba(16, 17, 20, 0.08);
 }
 
 blockquote {
@@ -955,8 +939,12 @@ blockquote {
 }
 
 figcaption {
+  position: absolute;
+  right: 24px;
+  bottom: 22px;
   color: var(--muted);
-  font-weight: 760;
+  font-size: 13px;
+  font-weight: 520;
 }
 
 .download-panel {
@@ -967,8 +955,8 @@ figcaption {
   margin-bottom: 58px;
   padding: 36px;
   overflow: hidden;
-  border: 1px solid rgba(16, 17, 20, 0.16);
-  border-radius: 8px;
+  border: 0;
+  border-radius: 34px;
   color: #ffffff;
   background:
     linear-gradient(135deg, rgba(255, 176, 0, 0.95) 0 18%, transparent 18.2%),
@@ -996,7 +984,6 @@ figcaption {
 
 .download-panel .button.secondary {
   color: #ffffff;
-  border-color: rgba(255, 255, 255, 0.26);
   background: rgba(255, 255, 255, 0.08);
 }
 
@@ -1005,7 +992,7 @@ figcaption {
   gap: 18px;
   padding: 28px 0 42px;
   color: var(--muted);
-  border-top: 1px solid var(--line);
+  border-top: 0;
   font-size: 14px;
 }
 
@@ -1057,13 +1044,13 @@ figcaption {
   }
 
   .hero-menu {
-    right: 22px;
-    width: min(380px, 52%);
+    right: 24px;
+    width: min(324px, 46%);
   }
 
   .hero-preview {
-    left: 22px;
-    width: 270px;
+    right: calc(46% + 36px);
+    width: 224px;
   }
 
   .feature-grid,
@@ -1075,10 +1062,6 @@ figcaption {
 @media (max-width: 860px) {
   .site-header nav {
     gap: 14px;
-  }
-
-  .screen {
-    aspect-ratio: 1.18 / 1;
   }
 
   .menu-left span {
@@ -1109,7 +1092,18 @@ figcaption {
 
   .demo-menu,
   .demo-preview {
+    grid-column: auto;
+    grid-row: auto;
     width: 100%;
+  }
+
+  .demo-menu {
+    order: 1;
+  }
+
+  .demo-preview {
+    order: 2;
+    margin-top: 0;
   }
 
   .demo-preview::after {
@@ -1166,12 +1160,13 @@ figcaption {
     border-radius: 8px;
   }
 
-  .install-line span,
+  .install-line > span:first-child,
   .install-line code {
     width: 100%;
   }
 
   .macbook-lid {
+    width: 94%;
     padding: 6px;
     border-radius: 20px 20px 11px 11px;
   }
@@ -1214,6 +1209,7 @@ figcaption {
   }
 
   .macbook-base {
+    width: 100%;
     height: 18px;
   }
 
