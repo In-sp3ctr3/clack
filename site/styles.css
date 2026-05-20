@@ -445,20 +445,79 @@ h1 {
   top: 40px;
   right: 28px;
   z-index: 6;
-  width: min(324px, 46%);
+  width: 46%;
   animation: menu-drop 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
 .hero-menu::before {
   position: absolute;
-  top: -12px;
-  right: 92px;
-  width: 24px;
-  height: 24px;
+  top: -9px;
+  right: 24%;
+  width: 18px;
+  height: 18px;
   content: "";
   border: 0;
   background: rgba(246, 248, 249, 0.78);
   transform: rotate(45deg);
+}
+
+.hero-menu .clack-header {
+  grid-template-columns: clamp(34px, 7vw, 58px) minmax(0, 1fr);
+  gap: clamp(4px, 0.8vw, 8px);
+  padding: clamp(4px, 0.9vw, 7px) clamp(5px, 1.2vw, 10px);
+}
+
+.hero-menu .clack-header strong,
+.hero-menu .row-text,
+.hero-menu .clack-footer button {
+  font-size: clamp(7px, 1.08vw, 13px);
+}
+
+.hero-menu .clack-search {
+  height: clamp(13px, 1.9vw, 22px);
+  gap: clamp(3px, 0.6vw, 6px);
+  padding: 0 clamp(4px, 0.9vw, 8px);
+  font-size: clamp(7px, 1vw, 12px);
+  border-radius: clamp(4px, 0.8vw, 7px);
+}
+
+.hero-menu .clack-search img {
+  width: clamp(7px, 1.1vw, 13px);
+  height: clamp(7px, 1.1vw, 13px);
+}
+
+.hero-menu .clack-row {
+  min-height: clamp(16px, 2.45vw, 28px);
+  gap: clamp(4px, 0.8vw, 8px);
+  padding: 0 clamp(5px, 1.1vw, 10px);
+}
+
+.hero-menu .image-row {
+  min-height: clamp(20px, 3.2vw, 38px);
+}
+
+.hero-menu .image-thumb {
+  width: clamp(18px, 2.9vw, 32px);
+  height: clamp(16px, 2.5vw, 28px);
+  border-radius: clamp(2px, 0.4vw, 4px);
+}
+
+.hero-menu .row-dot {
+  width: clamp(4px, 0.7vw, 7px);
+  height: clamp(4px, 0.7vw, 7px);
+}
+
+.hero-menu kbd {
+  font-size: clamp(7px, 1vw, 12px);
+}
+
+.hero-menu .clack-footer {
+  padding: clamp(3px, 0.8vw, 7px) 0;
+}
+
+.hero-menu .clack-footer button {
+  height: clamp(16px, 2.35vw, 27px);
+  padding: 0 clamp(5px, 1.1vw, 10px);
 }
 
 .clack-header {
@@ -1038,14 +1097,9 @@ figcaption {
 }
 
 @media (max-width: 1080px) {
-  .hero::before,
-  .hero::after {
-    display: none;
-  }
-
   .hero-menu {
-    right: 24px;
-    width: min(324px, 46%);
+    right: 3.8%;
+    width: 46%;
   }
 
   .hero-preview {
@@ -1087,23 +1141,20 @@ figcaption {
 
   .demo-stage {
     grid-template-columns: 1fr;
+    justify-items: center;
+    min-height: auto;
     padding: 28px;
   }
 
-  .demo-menu,
-  .demo-preview {
+  .demo-menu {
     grid-column: auto;
     grid-row: auto;
-    width: 100%;
-  }
-
-  .demo-menu {
     order: 1;
+    width: min(400px, 100%);
   }
 
   .demo-preview {
-    order: 2;
-    margin-top: 0;
+    display: none;
   }
 
   .demo-preview::after {
@@ -1149,10 +1200,22 @@ figcaption {
 
   .hero {
     padding-top: 28px;
+    padding-bottom: 34px;
   }
 
   h1 {
     font-size: clamp(72px, 24vw, 104px);
+  }
+
+  .lede {
+    font-size: 18px;
+    line-height: 1.36;
+  }
+
+  .eyebrow {
+    margin-bottom: 14px;
+    padding: 7px 12px;
+    font-size: 12px;
   }
 
   .install-line {
@@ -1187,12 +1250,12 @@ figcaption {
 
   .hero-menu {
     top: 34px;
-    right: 9px;
-    width: calc(100% - 18px);
+    right: 3.2%;
+    width: 48%;
   }
 
   .hero-menu::before {
-    right: 48px;
+    right: 20%;
   }
 
   .clack-row:nth-of-type(n + 5) {
@@ -1217,20 +1280,32 @@ figcaption {
   .product-demo,
   .features,
   .testimonials {
-    padding-bottom: 58px;
+    padding-bottom: 46px;
   }
 
   .section-heading h2,
   .download-panel h2 {
-    font-size: clamp(34px, 12vw, 52px);
+    font-size: clamp(31px, 10vw, 46px);
+    line-height: 1;
+  }
+
+  .section-heading {
+    margin-bottom: 22px;
+  }
+
+  .section-heading p:not(.eyebrow),
+  .download-panel p {
+    font-size: 15px;
+    line-height: 1.48;
   }
 
   .demo-stage {
-    padding: 18px;
+    padding: 22px 14px;
+    border-radius: 28px;
   }
 
-  .hover-preview dl div {
-    grid-template-columns: 104px 1fr;
+  .demo-menu {
+    width: min(330px, 100%);
   }
 
   .feature-grid,
@@ -1239,20 +1314,79 @@ figcaption {
   }
 
   .feature-card {
-    min-height: 220px;
+    min-height: 178px;
+    padding: 20px;
+    border-radius: 26px;
   }
 
   .feature-card span {
-    margin-bottom: 34px;
+    margin-bottom: 24px;
+    font-size: 11px;
+  }
+
+  .feature-card h3 {
+    font-size: 21px;
+  }
+
+  .feature-card p,
+  .proof-strip p {
+    font-size: 15px;
+    line-height: 1.43;
+  }
+
+  .proof-strip {
+    gap: 12px;
+  }
+
+  .proof-strip article {
+    min-height: 132px;
+    padding: 20px;
+    border-radius: 26px;
+  }
+
+  .proof-strip span {
+    margin-bottom: 24px;
+  }
+
+  .proof-strip strong {
+    font-size: 20px;
   }
 
   blockquote {
-    font-size: 21px;
+    font-size: 18px;
+    line-height: 1.24;
+  }
+
+  .testimonial-grid {
+    gap: 12px;
+  }
+
+  .testimonial-grid figure {
+    min-height: 168px;
+    padding: 20px 20px 48px;
+    border-radius: 26px;
+  }
+
+  figcaption {
+    right: 20px;
+    bottom: 18px;
+    font-size: 12px;
+  }
+
+  .download-panel {
+    padding: 26px 20px;
+    border-radius: 28px;
+  }
+
+  .download-actions {
+    width: 100%;
+    min-width: 0;
+    justify-content: center;
   }
 
   .download-actions .button,
   .hero-actions .button {
-    width: 100%;
+    width: min(260px, 100%);
   }
 
   .site-footer {
