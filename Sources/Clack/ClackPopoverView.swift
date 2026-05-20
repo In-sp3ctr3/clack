@@ -5,10 +5,11 @@ import SwiftUI
 struct ClackPopoverView: View {
   static let compactContentSize = NSSize(width: 330, height: 480)
 
-  private static let expandedContentSize = NSSize(width: 626, height: 480)
+  private static let expandedContentSize = NSSize(width: 588, height: 480)
   private static let menuWidth: CGFloat = 330
-  private static let previewWidth: CGFloat = 288
-  private static let previewHeight: CGFloat = 268
+  private static let previewWidth: CGFloat = 312
+  private static let previewHeight: CGFloat = 266
+  private static let previewOverlap: CGFloat = 54
   private static let previewMargin: CGFloat = 8
   private static let popoverHeight: CGFloat = 480
   private static let headerHeight: CGFloat = 65
@@ -70,26 +71,19 @@ struct ClackPopoverView: View {
   }
 
   private var detailCardTopOffset: CGFloat {
-    let centeredOffset = (hoveredRowCenterY ?? (Self.popoverHeight / 2)) - (Self.previewHeight / 2)
+    let anchoredOffset = (hoveredRowCenterY ?? (Self.popoverHeight / 2)) - 42
     let maximumOffset = Self.popoverHeight - Self.previewHeight - Self.previewMargin
-    return min(max(centeredOffset, Self.previewMargin), maximumOffset)
-  }
-
-  private var detailCardPointerY: CGFloat {
-    let pointerY = (hoveredRowCenterY ?? (Self.popoverHeight / 2)) - detailCardTopOffset
-    return min(max(pointerY, 26), Self.previewHeight - 26)
+    return min(max(anchoredOffset, Self.previewMargin), maximumOffset)
   }
 
   var body: some View {
-    HStack(alignment: .top, spacing: 8) {
+    ZStack(alignment: .topTrailing) {
       if let hoveredItem {
-        ZStack(alignment: .topTrailing) {
-          HoverDetailCard(
-            item: hoveredItem,
-            pointerY: detailCardPointerY
-          )
+        HoverDetailCard(item: hoveredItem)
           .frame(width: Self.previewWidth, height: Self.previewHeight)
           .padding(.top, detailCardTopOffset)
+          .padding(.trailing, Self.menuWidth - Self.previewOverlap)
+          .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
           .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .trailing)))
           .onHover { isHovering in
             detailCardIsHovered = isHovering
@@ -98,8 +92,6 @@ struct ClackPopoverView: View {
               clearHoveredItemAfterDelay(hoveredItem.id)
             }
           }
-        }
-        .frame(width: Self.previewWidth, height: Self.popoverHeight)
       }
 
       mainMenu
@@ -480,7 +472,6 @@ private struct CompactClipboardRow: View {
 
 private struct HoverDetailCard: View {
   let item: ClipboardItem
-  let pointerY: CGFloat
 
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
@@ -508,18 +499,18 @@ private struct HoverDetailCard: View {
       .foregroundStyle(.secondary)
     }
     .padding(.leading, 12)
-    .padding(.trailing, 20)
+    .padding(.trailing, 12)
     .padding(.vertical, 12)
     .background(
-      PopoutBubbleShape(pointerY: pointerY)
-        .fill(.regularMaterial)
+      RoundedRectangle(cornerRadius: 13, style: .continuous)
+        .fill(.thinMaterial)
     )
     .overlay(
-      PopoutBubbleShape(pointerY: pointerY)
-        .stroke(Color(nsColor: .separatorColor).opacity(0.5), lineWidth: 0.5)
+      RoundedRectangle(cornerRadius: 13, style: .continuous)
+        .stroke(Color(nsColor: .separatorColor).opacity(0.42), lineWidth: 0.5)
     )
-    .clipShape(PopoutBubbleShape(pointerY: pointerY))
-    .shadow(color: .black.opacity(0.18), radius: 20, x: 0, y: 10)
+    .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
+    .shadow(color: .black.opacity(0.16), radius: 20, x: 0, y: 10)
     .accessibilityElement(children: .contain)
     .accessibilityLabel("Clipboard item details")
   }
@@ -578,65 +569,6 @@ private struct HoverDetailCard: View {
           .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
       }
     }
-  }
-}
-
-private struct PopoutBubbleShape: Shape {
-  var pointerY: CGFloat
-
-  var animatableData: CGFloat {
-    get { pointerY }
-    set { pointerY = newValue }
-  }
-
-  func path(in rect: CGRect) -> Path {
-    let notchWidth: CGFloat = 8
-    let notchHeight: CGFloat = 20
-    let radius: CGFloat = 12
-    let body = CGRect(
-      x: rect.minX,
-      y: rect.minY,
-      width: rect.width - notchWidth,
-      height: rect.height
-    )
-    let clampedPointerY = min(
-      max(pointerY, body.minY + radius + (notchHeight / 2)),
-      body.maxY - radius - (notchHeight / 2)
-    )
-
-    var path = Path()
-    path.move(to: CGPoint(x: body.minX + radius, y: body.minY))
-    path.addLine(to: CGPoint(x: body.maxX - radius, y: body.minY))
-    path.addQuadCurve(
-      to: CGPoint(x: body.maxX, y: body.minY + radius),
-      control: CGPoint(x: body.maxX, y: body.minY)
-    )
-    path.addLine(to: CGPoint(x: body.maxX, y: clampedPointerY - (notchHeight / 2)))
-    path.addQuadCurve(
-      to: CGPoint(x: rect.maxX, y: clampedPointerY),
-      control: CGPoint(x: body.maxX + notchWidth, y: clampedPointerY - 6)
-    )
-    path.addQuadCurve(
-      to: CGPoint(x: body.maxX, y: clampedPointerY + (notchHeight / 2)),
-      control: CGPoint(x: body.maxX + notchWidth, y: clampedPointerY + 6)
-    )
-    path.addLine(to: CGPoint(x: body.maxX, y: body.maxY - radius))
-    path.addQuadCurve(
-      to: CGPoint(x: body.maxX - radius, y: body.maxY),
-      control: CGPoint(x: body.maxX, y: body.maxY)
-    )
-    path.addLine(to: CGPoint(x: body.minX + radius, y: body.maxY))
-    path.addQuadCurve(
-      to: CGPoint(x: body.minX, y: body.maxY - radius),
-      control: CGPoint(x: body.minX, y: body.maxY)
-    )
-    path.addLine(to: CGPoint(x: body.minX, y: body.minY + radius))
-    path.addQuadCurve(
-      to: CGPoint(x: body.minX + radius, y: body.minY),
-      control: CGPoint(x: body.minX, y: body.minY)
-    )
-    path.closeSubpath()
-    return path
   }
 }
 
