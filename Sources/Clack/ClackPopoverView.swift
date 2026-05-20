@@ -105,32 +105,33 @@ struct ClackPopoverView: View {
   }
 
   private var header: some View {
-    VStack(spacing: 7) {
+    HStack(spacing: 8) {
       if preferences.showTitleBeforeSearchField {
         Text("Clack")
           .font(.system(size: 13, weight: .semibold))
           .foregroundStyle(.primary)
-          .frame(maxWidth: .infinity, alignment: .center)
+          .frame(width: showsSearchField ? 58 : nil, alignment: .leading)
       }
 
       if showsSearchField {
         searchBar
+          .frame(maxWidth: .infinity)
       }
     }
     .padding(.horizontal, 10)
-    .padding(.top, 8)
-    .padding(.bottom, showsSearchField ? 9 : 8)
+    .padding(.top, 7)
+    .padding(.bottom, showsSearchField ? 7 : 8)
   }
 
   private var searchBar: some View {
-    HStack(spacing: 6) {
-      ClackTemplateIcon(size: 14)
+    HStack(spacing: 5) {
+      ClackTemplateIcon(size: 13)
         .foregroundStyle(.secondary)
         .accessibilityHidden(true)
 
       TextField("Search", text: $store.searchText)
         .textFieldStyle(.plain)
-        .font(.system(size: 13))
+        .font(.system(size: 12))
         .focused($searchFocused)
         .onSubmit(restoreSelectedItem)
         .accessibilityLabel("Search clipboard history")
@@ -149,10 +150,16 @@ struct ClackPopoverView: View {
         .help("Clear search")
       }
     }
-    .padding(.horizontal, 8)
-    .frame(height: 26)
-    .background(Color(nsColor: .controlBackgroundColor).opacity(0.72))
-    .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+    .padding(.horizontal, 7)
+    .frame(height: 22)
+    .background(
+      RoundedRectangle(cornerRadius: 7, style: .continuous)
+        .fill(Color(nsColor: .windowBackgroundColor).opacity(0.34))
+    )
+    .overlay(
+      RoundedRectangle(cornerRadius: 7, style: .continuous)
+        .stroke(Color(nsColor: .separatorColor).opacity(0.18), lineWidth: 0.5)
+    )
   }
 
   @ViewBuilder
@@ -531,12 +538,16 @@ private struct CompactClipboardRow: View {
             .accessibilityHidden(true)
         }
 
-        Text(highlightedPreview)
-          .font(.system(size: 13, weight: item.isPinned ? .semibold : .regular))
-          .foregroundStyle(.primary)
-          .lineLimit(1)
-          .truncationMode(.tail)
-          .frame(maxWidth: .infinity, alignment: .leading)
+        if item.imageData == nil {
+          Text(highlightedPreview)
+            .font(.system(size: 13, weight: item.isPinned ? .semibold : .regular))
+            .foregroundStyle(.primary)
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+          Spacer(minLength: 0)
+        }
 
         if let shortcutNumber {
           Text("⌘\(shortcutNumber)")
