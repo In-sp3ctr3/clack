@@ -12,6 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private var globalHotKeys: GlobalHotKeyController?
   private var statusItem: NSStatusItem?
   private var panel: ClackFloatingPanel?
+  private let previewPopover = ClackPreviewPopoverController()
   private var suppressPanelOpenUntil: Date?
   private var preferencesWindowController: NSWindowController?
   private var cancellables: Set<AnyCancellable> = []
@@ -258,14 +259,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       statusButton: button,
       onClose: { [weak self] in
         self?.suppressPanelOpenUntil = Date().addingTimeInterval(0.25)
+        self?.previewPopover.close()
         self?.panel = nil
       },
       rootView: ClackPopoverView(
         store: store,
         preferences: preferences,
         actions: makeClipboardActions(),
-        setContentSize: { [weak self] size in
-          self?.panel?.resizeContent(to: size, anchoredTo: self?.statusItem?.button)
+        showPreview: { [weak self] item, rowRect in
+          self?.showPreview(item, anchoredTo: rowRect)
+        },
+        hidePreview: { [weak self] in
+          self?.previewPopover.close()
         }
       )
     )
@@ -275,8 +280,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   private func closePanel() {
+    previewPopover.close()
     panel?.close()
     panel = nil
+  }
+
+  private func showPreview(_ item: ClipboardItem, anchoredTo rowRect: NSRect) {
+    guard
+      let panel,
+      let contentView = panel.contentView
+    else {
+      return
+    }
+
+    previewPopover.show(item: item, relativeTo: rowRect, of: contentView)
   }
 
   private func shouldSuppressPanelOpen() -> Bool {

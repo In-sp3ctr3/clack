@@ -72,22 +72,6 @@ final class ClackFloatingPanel: NSPanel, NSWindowDelegate {
     isPresented = true
   }
 
-  func resizeContent(to size: NSSize, anchoredTo button: NSStatusBarButton?) {
-    statusButton = button ?? statusButton
-    let nextFrame = frame(for: size, anchoredTo: statusButton)
-
-    guard isPresented else {
-      setFrame(nextFrame, display: false)
-      return
-    }
-
-    NSAnimationContext.runAnimationGroup { context in
-      context.duration = 0.16
-      context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-      animator().setFrame(nextFrame, display: true)
-    }
-  }
-
   override func resignKey() {
     super.resignKey()
 
@@ -123,14 +107,8 @@ final class ClackFloatingPanel: NSPanel, NSWindowDelegate {
       ?? NSScreen.screens.first?.visibleFrame
       ?? NSRect(x: 0, y: 0, width: frameSize.width, height: frameSize.height)
 
-    let compactFrameWidth = frameRect(
-      forContentRect: NSRect(origin: .zero, size: compactContentSize)
-    ).width
-    let compactOriginX = screenRect.midX - compactFrameWidth / 2
-    let previewWidth = max(frameSize.width - compactFrameWidth, 0)
-
     var origin = NSPoint(
-      x: compactOriginX - previewWidth,
+      x: screenRect.midX - frameSize.width / 2,
       y: screenRect.minY - frameSize.height - Self.statusBarGap
     )
 

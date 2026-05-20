@@ -3,24 +3,24 @@ import AppKit
 import SwiftUI
 
 struct ClackPopoverView: View {
-  static let compactContentSize = NSSize(width: 330, height: 480)
+  static let compactContentSize = NSSize(width: 400, height: 480)
 
-  private static let expandedContentSize = NSSize(width: 602, height: 480)
-  private static let menuWidth: CGFloat = 330
-  private static let previewWidth: CGFloat = 270
+  private static let menuWidth: CGFloat = 400
   private static let popoverHeight: CGFloat = 480
 
   @ObservedObject var store: ClipboardHistoryStore
   @ObservedObject var preferences: ClackPreferences
 
   let actions: ClipboardActions
-  let setContentSize: (NSSize) -> Void
+  let showPreview: (ClipboardItem, NSRect) -> Void
+  let hidePreview: () -> Void
 
   @FocusState private var searchFocused: Bool
   @State private var selectedItemID: ClipboardItem.ID?
   @State private var previewIsOpen = false
   @State private var previewOpenTask: Task<Void, Never>?
   @State private var searchFocusTask: Task<Void, Never>?
+  @State private var rowRects: [ClipboardItem.ID: NSRect] = [:]
 
   private var visibleItems: [ClipboardItem] {
     let filteredItems = store.items.filter {
@@ -42,29 +42,11 @@ struct ClackPopoverView: View {
     return visibleItems.first
   }
 
-  private var currentContentSize: NSSize {
-    previewIsOpen && selectedItem != nil ? Self.expandedContentSize : Self.compactContentSize
-  }
-
   var body: some View {
-    HStack(alignment: .top, spacing: 0) {
-      if previewIsOpen, let selectedItem {
-        VStack(spacing: 0) {
-          HoverDetailCard(item: selectedItem)
-        }
-        .frame(width: Self.previewWidth, height: Self.popoverHeight, alignment: .topLeading)
-        .clipped()
-        .transition(.identity)
-
-        Divider()
-      }
-
-      mainMenu
-    }
+    mainMenu
     .frame(
-      width: currentContentSize.width,
-      height: currentContentSize.height,
-      alignment: .trailing
+      width: Self.compactContentSize.width,
+      height: Self.compactContentSize.height
     )
     .background(ClackPanelMaterial())
     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -87,17 +69,14 @@ struct ClackPopoverView: View {
       scheduleSearchFocus()
       syncSelectionWithVisibleItems()
       previewIsOpen = false
-      setContentSize(currentContentSize)
     }
     .onDisappear {
       previewOpenTask?.cancel()
       searchFocusTask?.cancel()
+      hidePreview()
     }
     .onChange(of: visibleItemIDs) { _ in
       syncSelectionWithVisibleItems()
-    }
-    .onChange(of: previewIsOpen) { _ in
-      setContentSize(currentContentSize)
     }
   }
 
@@ -177,15 +156,23 @@ struct ClackPopoverView: View {
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity)
     } else {
-      ScrollView {
-        LazyVStack(spacing: 0) {
-          ForEach(Array(visibleItems.enumerated()), id: \.element.id) { index, item in
-            shortcutRow(item: item, index: index)
+      ScrollViewReader { proxy in
+        ScrollView {
+          LazyVStack(spacing: 0) {
+            ForEach(Array(visibleItems.enumerated()), id: \.element.id) { index, item in
+              shortcutRow(item: item, index: index)
+                .id(item.id)
 
-            if item.id != visibleItems.last?.id {
-              Divider()
-                .padding(.leading, 10)
+              if item.id != visibleItems.last?.id {
+                Divider()
+                  .padding(.leading, 10)
+              }
             }
+          }
+        }
+        .onChange(of: selectedItemID) { itemID in
+          if let itemID {
+            proxy.scrollTo(itemID, anchor: .center)
           }
         }
       }
@@ -202,6 +189,13 @@ struct ClackPopoverView: View {
       restore: { actions.restore(item) },
       onHover: { isHovering in
         handleHover(item: item, isHovering: isHovering)
+      },
+      onFrameChange: { rect in
+        rowRects[item.id] = rect
+
+        if previewIsOpen, selectedItemID == item.id {
+          showPreview(item, rect)
+        }
       }
     )
 
@@ -335,6 +329,7 @@ struct ClackPopoverView: View {
 
       guard !previewIsOpen else {
         previewOpenTask?.cancel()
+        showPreviewIfPossible(for: item.id)
         return
       }
 
@@ -357,8 +352,31 @@ struct ClackPopoverView: View {
         return
       }
 
-      previewIsOpen = true
+      if !showPreviewIfPossible(for: itemID) {
+        try? await Task.sleep(nanoseconds: 75_000_000)
+
+        guard !Task.isCancelled, selectedItemID == itemID else {
+          return
+        }
+
+        _ = showPreviewIfPossible(for: itemID)
+      }
     }
+  }
+
+  @discardableResult
+  private func showPreviewIfPossible(for itemID: ClipboardItem.ID) -> Bool {
+    guard
+      let item = visibleItems.first(where: { $0.id == itemID }),
+      let rowRect = rowRects[itemID],
+      !rowRect.isEmpty
+    else {
+      return false
+    }
+
+    previewIsOpen = true
+    showPreview(item, rowRect)
+    return true
   }
 
   private func scheduleSearchFocus() {
@@ -378,6 +396,7 @@ struct ClackPopoverView: View {
     guard !visibleItems.isEmpty else {
       selectedItemID = nil
       previewIsOpen = false
+      hidePreview()
       return
     }
 
@@ -397,6 +416,7 @@ private struct CompactClipboardRow: View {
   let isSelected: Bool
   let restore: () -> Void
   let onHover: (Bool) -> Void
+  let onFrameChange: (NSRect) -> Void
 
   var body: some View {
     Button(action: restore) {
@@ -420,6 +440,7 @@ private struct CompactClipboardRow: View {
       .padding(.horizontal, 10)
       .frame(height: 28)
       .background(rowBackground)
+      .background(RowFrameReporter(onChange: onFrameChange))
     }
     .buttonStyle(.plain)
     .onHover(perform: onHover)
@@ -484,17 +505,16 @@ private struct HoverDetailCard: View {
         DetailMetadataRow(title: "Number of copies", value: "\(item.copyCount)")
       }
 
-      Spacer(minLength: 12)
-
       VStack(alignment: .leading, spacing: 4) {
         Text("Press ⌘P to \(item.isPinned ? "unpin" : "pin")")
         Text("Press ⌘⌫ to delete")
       }
       .font(.system(size: 12))
       .foregroundStyle(.secondary)
+      .padding(.top, 14)
     }
     .padding(14)
-    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    .frame(maxWidth: .infinity, alignment: .topLeading)
     .clipped()
     .accessibilityElement(children: .contain)
     .accessibilityLabel("Clipboard item details")
@@ -598,6 +618,145 @@ private struct PreviewTextScrollView: NSViewRepresentable {
 
   final class Coordinator {
     weak var textView: NSTextView?
+  }
+}
+
+@MainActor
+final class ClackPreviewPopoverController {
+  private static let gap: CGFloat = 5
+  private static let previewSize = NSSize(width: 330, height: 300)
+
+  private var popover: NSPopover?
+
+  func show(item: ClipboardItem, relativeTo rowRect: NSRect, of anchorView: NSView) {
+    guard !rowRect.isEmpty else {
+      return
+    }
+
+    close()
+
+    let popover = NSPopover()
+    popover.animates = false
+    popover.behavior = .semitransient
+    popover.contentSize = Self.previewSize
+    popover.contentViewController = NSHostingController(
+      rootView: HoverDetailCard(item: item)
+        .frame(width: Self.previewSize.width, height: Self.previewSize.height)
+    )
+
+    let edge = preferredEdge(for: rowRect, in: anchorView)
+    popover.show(relativeTo: rowRect, of: anchorView, preferredEdge: edge)
+    self.popover = popover
+
+    applyGap(from: anchorView, edge: edge, to: popover)
+  }
+
+  func close() {
+    popover?.close()
+    popover = nil
+  }
+
+  private func preferredEdge(for rowRect: NSRect, in anchorView: NSView) -> NSRectEdge {
+    guard
+      let window = anchorView.window,
+      let screen = window.screen?.visibleFrame ?? NSScreen.main?.visibleFrame
+    else {
+      return .minX
+    }
+
+    let windowRect = anchorView.convert(rowRect, to: nil)
+    let screenRect = window.convertToScreen(windowRect)
+    let roomLeft = screenRect.minX - screen.minX
+    let roomRight = screen.maxX - screenRect.maxX
+
+    if roomLeft >= Self.previewSize.width + Self.gap || roomLeft >= roomRight {
+      return .minX
+    }
+
+    return .maxX
+  }
+
+  private func applyGap(from anchorView: NSView, edge: NSRectEdge, to popover: NSPopover) {
+    guard
+      let panelFrame = anchorView.window?.frame,
+      let popoverWindow = popover.contentViewController?.view.window
+    else {
+      return
+    }
+
+    if popoverWindow.frame.maxX <= panelFrame.minX {
+      popoverWindow.setFrameOrigin(
+        NSPoint(x: popoverWindow.frame.minX - Self.gap, y: popoverWindow.frame.minY)
+      )
+    } else if popoverWindow.frame.minX >= panelFrame.maxX {
+      popoverWindow.setFrameOrigin(
+        NSPoint(x: popoverWindow.frame.minX + Self.gap, y: popoverWindow.frame.minY)
+      )
+    } else if edge == .minX {
+      popoverWindow.setFrameOrigin(
+        NSPoint(x: popoverWindow.frame.minX - Self.gap, y: popoverWindow.frame.minY)
+      )
+    } else if edge == .maxX {
+      popoverWindow.setFrameOrigin(
+        NSPoint(x: popoverWindow.frame.minX + Self.gap, y: popoverWindow.frame.minY)
+      )
+    }
+  }
+}
+
+private struct RowFrameReporter: NSViewRepresentable {
+  let onChange: (NSRect) -> Void
+
+  func makeNSView(context: Context) -> ReportingView {
+    ReportingView(onChange: onChange)
+  }
+
+  func updateNSView(_ nsView: ReportingView, context: Context) {
+    nsView.onChange = onChange
+    nsView.reportFrame()
+  }
+
+  final class ReportingView: NSView {
+    var onChange: (NSRect) -> Void
+    private var lastRect = NSRect.zero
+
+    init(onChange: @escaping (NSRect) -> Void) {
+      self.onChange = onChange
+      super.init(frame: .zero)
+    }
+
+    required init?(coder: NSCoder) {
+      fatalError("init(coder:) has not been implemented")
+    }
+
+    override func viewDidMoveToWindow() {
+      super.viewDidMoveToWindow()
+      reportFrame()
+    }
+
+    override func setFrameSize(_ newSize: NSSize) {
+      super.setFrameSize(newSize)
+      reportFrame()
+    }
+
+    func reportFrame() {
+      DispatchQueue.main.async { [weak self] in
+        guard
+          let self,
+          let contentView = window?.contentView
+        else {
+          return
+        }
+
+        let rect = convert(bounds, to: contentView)
+        guard rect != lastRect else {
+          return
+        }
+
+        lastRect = rect
+        onChange(rect)
+      }
+    }
   }
 }
 
