@@ -47,9 +47,12 @@ struct ClackPopoverView: View {
   var body: some View {
     HStack(alignment: .top, spacing: 0) {
       if previewIsOpen, let selectedItem {
-        HoverDetailCard(item: selectedItem)
-          .frame(width: Self.previewWidth, height: Self.popoverHeight)
-          .transition(.move(edge: .trailing).combined(with: .opacity))
+        VStack(spacing: 0) {
+          HoverDetailCard(item: selectedItem)
+        }
+        .frame(width: Self.previewWidth, height: Self.popoverHeight, alignment: .topLeading)
+        .clipped()
+        .transition(.identity)
 
         Divider()
       }
@@ -125,8 +128,7 @@ struct ClackPopoverView: View {
 
   private var searchBar: some View {
     HStack(spacing: 6) {
-      Image(systemName: "magnifyingglass")
-        .font(.system(size: 11, weight: .medium))
+      ClackTemplateIcon(size: 14)
         .foregroundStyle(.secondary)
         .accessibilityHidden(true)
 
@@ -439,6 +441,8 @@ private struct HoverDetailCard: View {
       .foregroundStyle(.secondary)
     }
     .padding(14)
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    .clipped()
     .accessibilityElement(children: .contain)
     .accessibilityLabel("Clipboard item details")
   }
@@ -447,31 +451,12 @@ private struct HoverDetailCard: View {
   private var payloadPreview: some View {
     switch item.kind {
     case .text, .richText:
-      ScrollView {
-        Text(item.content)
-          .font(.system(size: 12, design: .monospaced))
-          .foregroundStyle(.primary)
-          .textSelection(.enabled)
-          .frame(maxWidth: .infinity, alignment: .leading)
-          .padding(9)
-      }
+      PreviewTextScrollView(text: item.content)
       .background(Color(nsColor: .textBackgroundColor).opacity(0.58))
       .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
       .accessibilityLabel("Full clipboard content")
     case .file:
-      ScrollView {
-        VStack(alignment: .leading, spacing: 5) {
-          ForEach(item.fileURLs, id: \.self) { path in
-            Text(URL(fileURLWithPath: path).lastPathComponent)
-              .help(path)
-          }
-        }
-        .font(.system(size: 12, design: .monospaced))
-        .foregroundStyle(.primary)
-        .textSelection(.enabled)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(9)
-      }
+      PreviewTextScrollView(text: filePreviewText)
       .background(Color(nsColor: .textBackgroundColor).opacity(0.58))
       .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
       .accessibilityLabel("Copied files")
@@ -489,14 +474,109 @@ private struct HoverDetailCard: View {
           .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
           .accessibilityLabel("Copied image preview")
       } else {
-        Text(item.detailText)
-          .font(.system(size: 12))
-          .foregroundStyle(.secondary)
-          .frame(maxWidth: .infinity, maxHeight: .infinity)
+        PreviewTextScrollView(text: item.detailText)
           .background(Color(nsColor: .textBackgroundColor).opacity(0.58))
           .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
       }
     }
+  }
+
+  private var filePreviewText: String {
+    item.fileURLs
+      .map { URL(fileURLWithPath: $0).lastPathComponent }
+      .joined(separator: "\n")
+  }
+}
+
+private struct PreviewTextScrollView: NSViewRepresentable {
+  let text: String
+
+  func makeNSView(context: Context) -> NSScrollView {
+    let scrollView = NSScrollView()
+    scrollView.borderType = .noBorder
+    scrollView.drawsBackground = false
+    scrollView.wantsLayer = true
+    scrollView.layer?.masksToBounds = true
+    scrollView.hasVerticalScroller = true
+    scrollView.hasHorizontalScroller = false
+    scrollView.autohidesScrollers = true
+    scrollView.scrollerStyle = .overlay
+
+    let textView = NSTextView()
+    textView.drawsBackground = false
+    textView.isEditable = false
+    textView.isSelectable = true
+    textView.isRichText = false
+    textView.importsGraphics = false
+    textView.usesFontPanel = false
+    textView.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
+    textView.textColor = .labelColor
+    textView.textContainerInset = NSSize(width: 9, height: 9)
+    textView.textContainer?.lineFragmentPadding = 0
+    textView.textContainer?.lineBreakMode = .byCharWrapping
+    textView.textContainer?.widthTracksTextView = true
+    textView.isHorizontallyResizable = false
+    textView.isVerticallyResizable = true
+    textView.autoresizingMask = [.width]
+    textView.string = text
+
+    scrollView.documentView = textView
+    context.coordinator.textView = textView
+    return scrollView
+  }
+
+  func updateNSView(_ scrollView: NSScrollView, context: Context) {
+    guard let textView = context.coordinator.textView else {
+      return
+    }
+
+    textView.string = text
+    let contentWidth = max(scrollView.contentSize.width, 1)
+    textView.frame.size.width = contentWidth
+    textView.textContainer?.containerSize = NSSize(
+      width: contentWidth,
+      height: CGFloat.greatestFiniteMagnitude
+    )
+  }
+
+  func makeCoordinator() -> Coordinator {
+    Coordinator()
+  }
+
+  final class Coordinator {
+    weak var textView: NSTextView?
+  }
+}
+
+private struct ClackTemplateIcon: View {
+  let size: CGFloat
+
+  var body: some View {
+    if let image = Self.templateImage(size: size) {
+      Image(nsImage: image)
+        .renderingMode(.template)
+        .resizable()
+        .scaledToFit()
+        .frame(width: size, height: size)
+    } else {
+      Image(systemName: "doc.on.clipboard")
+        .font(.system(size: size - 2, weight: .medium))
+        .frame(width: size, height: size)
+    }
+  }
+
+  private static func templateImage(size: CGFloat) -> NSImage? {
+    guard
+      let url = Bundle.main.url(forResource: "ClackMenuBarTemplate", withExtension: "png"),
+      let image = NSImage(contentsOf: url)?.copy() as? NSImage
+    else {
+      return nil
+    }
+
+    image.isTemplate = true
+    image.size = NSSize(width: size, height: size)
+    image.accessibilityDescription = "Clack"
+    return image
   }
 }
 
