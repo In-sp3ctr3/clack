@@ -221,19 +221,7 @@ struct PreferencesView: View {
       PreferenceDivider()
 
       VStack(alignment: .leading, spacing: 10) {
-        HStack {
-          Toggle("Show menu icon", isOn: $preferences.showMenuIcon)
-
-          Picker("", selection: $preferences.menuIconSymbol) {
-            Text("Clipboard").tag("doc.on.clipboard")
-            Text("Document").tag("doc.text")
-            Text("Paperclip").tag("paperclip")
-          }
-          .labelsHidden()
-          .frame(width: 150)
-          .accessibilityLabel("Menu icon")
-        }
-
+        Toggle("Show menu icon", isOn: $preferences.showMenuIcon)
         Toggle("Show recent copy next to menu icon", isOn: $preferences.showRecentCopyInMenuBar)
 
         HStack {

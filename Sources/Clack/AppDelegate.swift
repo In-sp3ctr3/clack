@@ -88,11 +88,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     if preferences.showMenuIcon {
-      let image = NSImage(
-        systemSymbolName: preferences.menuIconSymbol,
-        accessibilityDescription: "Clack"
-      ) ?? NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: "Clack")
-      button.image = image
+      button.image = menuBarImage()
     } else {
       button.image = nil
     }
@@ -106,6 +102,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     } else {
       button.title = preferences.showMenuIcon ? "" : "Clack"
     }
+  }
+
+  private func menuBarImage() -> NSImage? {
+    let image = Bundle.main.url(
+      forResource: "ClackMenuBarTemplate",
+      withExtension: "png"
+    ).flatMap(NSImage.init(contentsOf:)) ?? NSImage(
+      systemSymbolName: "doc.on.clipboard",
+      accessibilityDescription: "Clack"
+    )
+
+    image?.isTemplate = true
+    image?.size = NSSize(width: 18, height: 18)
+    image?.accessibilityDescription = "Clack"
+    return image
   }
 
   private func configurePopover() {
@@ -135,12 +146,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     popover.behavior = .transient
     popover.animates = true
-    popover.contentSize = NSSize(width: 460, height: 620)
+    popover.contentSize = ClackPopoverView.compactContentSize
     popover.contentViewController = NSHostingController(
       rootView: ClackPopoverView(
         store: store,
         preferences: preferences,
-        actions: actions
+        actions: actions,
+        setContentSize: { [weak self] size in
+          self?.popover.contentSize = size
+        }
       )
     )
   }

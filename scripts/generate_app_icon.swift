@@ -6,6 +6,7 @@ import Foundation
 let rootURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let iconsetURL = rootURL.appendingPathComponent(".build/icon/Clack.iconset")
 let iconURL = rootURL.appendingPathComponent("Packaging/Clack.icns")
+let menuBarTemplateURL = rootURL.appendingPathComponent("Packaging/ClackMenuBarTemplate.png")
 
 try FileManager.default.removeItemIfPresent(at: iconsetURL)
 try FileManager.default.createDirectory(at: iconsetURL, withIntermediateDirectories: true)
@@ -50,7 +51,10 @@ guard process.terminationStatus == 0 else {
   throw IconGenerationError.iconutilFailed(process.terminationStatus)
 }
 
+try drawMenuBarTemplateIcon(pixels: 64, to: menuBarTemplateURL)
+
 print(iconURL.path)
+print(menuBarTemplateURL.path)
 
 private func drawIcon(pixels: Int, to url: URL) throws {
   guard
@@ -131,6 +135,88 @@ private func drawYellowFold() {
     color: CGColor(red: 0, green: 0, blue: 0, alpha: 0.36)
   )
 
+  let fold = yellowFoldPath()
+  fold.addClip()
+  NSGradient(colors: [
+    NSColor(calibratedRed: 1.00, green: 0.77, blue: 0.17, alpha: 1),
+    NSColor(calibratedRed: 1.00, green: 0.52, blue: 0.00, alpha: 1)
+  ])?.draw(in: NSRect(x: 256, y: 210, width: 420, height: 470), angle: 104)
+  context?.restoreGState()
+}
+
+private func drawDocument() {
+  let context = NSGraphicsContext.current?.cgContext
+
+  context?.saveGState()
+  context?.setShadow(
+    offset: CGSize(width: 0, height: -16),
+    blur: 32,
+    color: CGColor(red: 0, green: 0, blue: 0, alpha: 0.38)
+  )
+
+  let document = documentPath()
+
+  document.addClip()
+  NSGradient(colors: [
+    NSColor(calibratedWhite: 1.00, alpha: 1),
+    NSColor(calibratedWhite: 0.93, alpha: 1)
+  ])?.draw(in: NSRect(x: 370, y: 320, width: 390, height: 470), angle: -42)
+  context?.restoreGState()
+}
+
+private func drawMenuBarTemplateIcon(pixels: Int, to url: URL) throws {
+  guard
+    let bitmap = NSBitmapImageRep(
+      bitmapDataPlanes: nil,
+      pixelsWide: pixels,
+      pixelsHigh: pixels,
+      bitsPerSample: 8,
+      samplesPerPixel: 4,
+      hasAlpha: true,
+      isPlanar: false,
+      colorSpaceName: .deviceRGB,
+      bytesPerRow: 0,
+      bitsPerPixel: 0
+    )
+  else {
+    throw IconGenerationError.bitmapCreationFailed
+  }
+
+  bitmap.size = NSSize(width: pixels, height: pixels)
+
+  NSGraphicsContext.saveGraphicsState()
+  guard let graphicsContext = NSGraphicsContext(bitmapImageRep: bitmap) else {
+    throw IconGenerationError.graphicsContextCreationFailed
+  }
+  NSGraphicsContext.current = graphicsContext
+  graphicsContext.cgContext.setAllowsAntialiasing(true)
+  graphicsContext.cgContext.setShouldAntialias(true)
+
+  let sourceBounds = NSRect(x: 250, y: 200, width: 510, height: 620)
+  let padding = CGFloat(pixels) * 0.12
+  let scale = (CGFloat(pixels) - (padding * 2)) / sourceBounds.height
+  let horizontalInset = (CGFloat(pixels) - (sourceBounds.width * scale)) / 2
+
+  graphicsContext.cgContext.translateBy(
+    x: horizontalInset - (sourceBounds.minX * scale),
+    y: padding - (sourceBounds.minY * scale)
+  )
+  graphicsContext.cgContext.scaleBy(x: scale, y: scale)
+
+  NSColor.black.setFill()
+  yellowFoldPath().fill()
+  documentPath().fill()
+
+  NSGraphicsContext.restoreGraphicsState()
+
+  guard let pngData = bitmap.representation(using: .png, properties: [:]) else {
+    throw IconGenerationError.pngEncodingFailed
+  }
+
+  try pngData.write(to: url)
+}
+
+private func yellowFoldPath() -> NSBezierPath {
   let fold = NSBezierPath()
   fold.move(to: NSPoint(x: 355, y: 650))
   fold.line(to: NSPoint(x: 313, y: 650))
@@ -171,25 +257,10 @@ private func drawYellowFold() {
     controlPoint2: NSPoint(x: 355, y: 538)
   )
   fold.close()
-
-  fold.addClip()
-  NSGradient(colors: [
-    NSColor(calibratedRed: 1.00, green: 0.77, blue: 0.17, alpha: 1),
-    NSColor(calibratedRed: 1.00, green: 0.52, blue: 0.00, alpha: 1)
-  ])?.draw(in: NSRect(x: 256, y: 210, width: 420, height: 470), angle: 104)
-  context?.restoreGState()
+  return fold
 }
 
-private func drawDocument() {
-  let context = NSGraphicsContext.current?.cgContext
-
-  context?.saveGState()
-  context?.setShadow(
-    offset: CGSize(width: 0, height: -16),
-    blur: 32,
-    color: CGColor(red: 0, green: 0, blue: 0, alpha: 0.38)
-  )
-
+private func documentPath() -> NSBezierPath {
   let document = NSBezierPath()
   document.move(to: NSPoint(x: 431, y: 772))
   document.line(to: NSPoint(x: 574, y: 772))
@@ -229,13 +300,7 @@ private func drawDocument() {
     controlPoint2: NSPoint(x: 407, y: 772)
   )
   document.close()
-
-  document.addClip()
-  NSGradient(colors: [
-    NSColor(calibratedWhite: 1.00, alpha: 1),
-    NSColor(calibratedWhite: 0.93, alpha: 1)
-  ])?.draw(in: NSRect(x: 370, y: 320, width: 390, height: 470), angle: -42)
-  context?.restoreGState()
+  return document
 }
 
 private enum IconGenerationError: Error {

@@ -66,7 +66,6 @@ public final class ClackPreferences: ObservableObject {
     static let highlightStyle = "highlightStyle"
     static let showSpecialSymbols = "showSpecialSymbols"
     static let showMenuIcon = "showMenuIcon"
-    static let menuIconSymbol = "menuIconSymbol"
     static let showRecentCopyInMenuBar = "showRecentCopyInMenuBar"
     static let searchFieldVisibility = "searchFieldVisibility"
     static let showTitleBeforeSearchField = "showTitleBeforeSearchField"
@@ -97,7 +96,6 @@ public final class ClackPreferences: ObservableObject {
   @Published public var highlightStyle: HighlightStyle { didSet { defaults.set(highlightStyle.rawValue, forKey: Keys.highlightStyle) } }
   @Published public var showSpecialSymbols: Bool { didSet { defaults.set(showSpecialSymbols, forKey: Keys.showSpecialSymbols) } }
   @Published public var showMenuIcon: Bool { didSet { defaults.set(showMenuIcon, forKey: Keys.showMenuIcon) } }
-  @Published public var menuIconSymbol: String { didSet { defaults.set(menuIconSymbol, forKey: Keys.menuIconSymbol) } }
   @Published public var showRecentCopyInMenuBar: Bool { didSet { defaults.set(showRecentCopyInMenuBar, forKey: Keys.showRecentCopyInMenuBar) } }
   @Published public var searchFieldVisibility: SearchFieldVisibility { didSet { defaults.set(searchFieldVisibility.rawValue, forKey: Keys.searchFieldVisibility) } }
   @Published public var showTitleBeforeSearchField: Bool { didSet { defaults.set(showTitleBeforeSearchField, forKey: Keys.showTitleBeforeSearchField) } }
@@ -131,7 +129,6 @@ public final class ClackPreferences: ObservableObject {
     self.highlightStyle = Self.enumeration(defaults, key: Keys.highlightStyle, defaultValue: .bold)
     self.showSpecialSymbols = Self.bool(defaults, key: Keys.showSpecialSymbols, defaultValue: true)
     self.showMenuIcon = Self.bool(defaults, key: Keys.showMenuIcon, defaultValue: true)
-    self.menuIconSymbol = defaults.string(forKey: Keys.menuIconSymbol) ?? "doc.on.clipboard"
     self.showRecentCopyInMenuBar = Self.bool(defaults, key: Keys.showRecentCopyInMenuBar, defaultValue: false)
     self.searchFieldVisibility = Self.enumeration(defaults, key: Keys.searchFieldVisibility, defaultValue: .always)
     self.showTitleBeforeSearchField = Self.bool(defaults, key: Keys.showTitleBeforeSearchField, defaultValue: true)
