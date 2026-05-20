@@ -10,7 +10,7 @@ The site is intentionally static for now. GitHub Releases remain the source of t
 npm run build
 ```
 
-The build copies `index.html` and `styles.css` into `dist/`.
+The build copies `index.html`, `styles.css`, and `assets/` into `dist/`.
 
 ## Deployment
 

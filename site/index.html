@@ -6,95 +6,291 @@
     <title>Clack - Clipboard memory for macOS</title>
     <meta
       name="description"
-      content="Clack is a native macOS menu bar app that keeps a searchable local clipboard history."
+      content="Clack is a native macOS menu bar clipboard history app for text, formatted text, files, and images."
     >
-    <link rel="icon" href="data:,">
+    <link rel="icon" href="./assets/clack-icon.png">
     <link rel="stylesheet" href="./styles.css">
   </head>
   <body>
     <header class="site-header">
       <a class="brand" href="/" aria-label="Clack home">
-        <span class="brand-mark">C</span>
+        <img src="./assets/clack-icon.png" alt="" width="36" height="36">
         <span>Clack</span>
       </a>
       <nav aria-label="Primary">
+        <a href="#features">Features</a>
+        <a href="#download">Download</a>
         <a href="https://github.com/In-sp3ctr3/clack">GitHub</a>
-        <a href="https://github.com/In-sp3ctr3/clack/releases">Releases</a>
       </nav>
     </header>
 
     <main>
-      <section class="hero">
-        <div class="hero-copy">
-          <p class="eyebrow">Native macOS clipboard history</p>
-          <h1>Clack</h1>
-          <p class="lede">
-            A small menu bar app that remembers copied text, formatted text, files, and images,
-            keeps them searchable, and lets you bring useful snippets back without breaking your flow.
-          </p>
-          <div class="actions">
-            <a class="button primary" href="https://github.com/In-sp3ctr3/clack/releases">
-              Download alpha
-            </a>
-            <a class="button secondary" href="https://github.com/In-sp3ctr3/clack">
-              View source
-            </a>
-          </div>
-          <div class="install-command" aria-label="Install Clack with Homebrew">
-            <span>Homebrew</span>
-            <code>brew install --cask In-sp3ctr3/tap/clack</code>
-          </div>
-          <p class="release-note">
-            Alpha builds are available on GitHub Releases. They are unsigned and not notarized yet,
-            so macOS may warn before opening them.
-          </p>
+      <section class="hero" aria-labelledby="hero-title">
+        <p class="eyebrow">Clipboard memory for macOS</p>
+        <h1 id="hero-title">Clack</h1>
+        <p class="lede">
+          A native menu bar app that remembers what you copy, keeps it searchable,
+          and brings it back exactly when you need it.
+        </p>
+
+        <div class="hero-actions" id="download" aria-label="Download options">
+          <a class="button primary" href="https://github.com/In-sp3ctr3/clack/releases">
+            Download alpha
+          </a>
+          <a class="button secondary" href="https://github.com/In-sp3ctr3/clack">
+            View source
+          </a>
         </div>
 
-        <div class="product-view" aria-label="Clack app preview">
-          <div class="menu-bar">
-            <span></span>
-            <span></span>
-            <span class="menu-title">Clack</span>
-          </div>
-          <div class="popover">
-            <div class="search">Search clipboard history</div>
-            <ol class="history">
-              <li>
-                <strong>Release checklist</strong>
-                <span>GitHub Releases, checksum, notarization</span>
-              </li>
-              <li>
-                <strong>support@company.com</strong>
-                <span>Mail - frontmost app - 2 copies</span>
-              </li>
-              <li>
-                <strong>ssh git@github.com:In-sp3ctr3/clack.git</strong>
-                <span>Terminal - frontmost app</span>
-              </li>
-            </ol>
-            <div class="details">
-              <span>First copied today</span>
-              <span>Last copied 2m ago</span>
-              <span>Pinned</span>
+        <div class="install-line" aria-label="Install with Homebrew">
+          <span>Homebrew</span>
+          <code>brew install --cask In-sp3ctr3/tap/clack</code>
+        </div>
+
+        <div class="laptop-stage" aria-label="Clack macOS app mockup">
+          <div class="laptop">
+            <div class="screen">
+              <div class="mac-menu">
+                <span class="window-dot"></span>
+                <span class="window-dot"></span>
+                <span class="window-dot"></span>
+                <span class="menu-chip">
+                  <img src="./assets/clack-icon.png" alt="" width="16" height="16">
+                  Clack
+                </span>
+                <span class="menu-status">9:41 AM</span>
+              </div>
+
+              <div class="desktop">
+                <div class="popover-demo" aria-label="Clack menu preview">
+                  <div class="popover-header">
+                    <strong>Clack</strong>
+                    <div class="search-field">
+                      <span aria-hidden="true">⌕</span>
+                      <span>Search</span>
+                    </div>
+                  </div>
+
+                  <button class="history-row active" type="button">
+                    <span>Launch checklist for alpha release</span>
+                    <kbd>⌘1</kbd>
+                  </button>
+                  <button class="history-row" type="button">
+                    <span>https://github.com/In-sp3ctr3/clack</span>
+                    <kbd>⌘2</kbd>
+                  </button>
+                  <button class="history-row" type="button">
+                    <span>Screenshot copied from Finder</span>
+                    <kbd>⌘3</kbd>
+                  </button>
+                  <button class="history-row" type="button">
+                    <span>brew install --cask In-sp3ctr3/tap/clack</span>
+                    <kbd>⌘4</kbd>
+                  </button>
+
+                  <div class="popover-footer">
+                    <span>Clear</span>
+                    <span>Preferences</span>
+                    <span>Quit</span>
+                  </div>
+                </div>
+
+                <div class="preview-card">
+                  <p>Launch checklist for alpha release</p>
+                  <dl>
+                    <div>
+                      <dt>Application</dt>
+                      <dd>Notes</dd>
+                    </div>
+                    <div>
+                      <dt>First copied</dt>
+                      <dd>Today, 9:36 AM</dd>
+                    </div>
+                    <div>
+                      <dt>Copies</dt>
+                      <dd>3</dd>
+                    </div>
+                  </dl>
+                  <span>Press ⌘P to pin</span>
+                </div>
+              </div>
             </div>
+            <div class="laptop-base"></div>
           </div>
         </div>
       </section>
 
-      <section class="features" aria-label="Features">
+      <section class="interactive-demo" id="features" aria-labelledby="demo-title">
+        <div class="section-heading">
+          <p class="eyebrow">Try the rhythm</p>
+          <h2 id="demo-title">A clipboard menu that stays out of the way.</h2>
+          <p>
+            Click a sample row to see how Clack keeps the item, shortcut, and metadata
+            close without turning your clipboard history into a full app window.
+          </p>
+        </div>
+
+        <div class="demo-shell">
+          <div class="demo-menu" role="list" aria-label="Interactive clipboard examples">
+            <button class="demo-row is-selected" type="button" data-demo="text">
+              <span>Final launch copy for README</span>
+              <kbd>⌘1</kbd>
+            </button>
+            <button class="demo-row" type="button" data-demo="image">
+              <span>Screenshot from Finder</span>
+              <kbd>⌘2</kbd>
+            </button>
+            <button class="demo-row" type="button" data-demo="link">
+              <span>https://github.com/In-sp3ctr3/clack</span>
+              <kbd>⌘3</kbd>
+            </button>
+            <button class="demo-row" type="button" data-demo="command">
+              <span>brew install --cask In-sp3ctr3/tap/clack</span>
+              <kbd>⌘4</kbd>
+            </button>
+          </div>
+
+          <article class="demo-detail" aria-live="polite">
+            <p class="detail-label">Preview</p>
+            <h3 id="demo-detail-title">Final launch copy for README</h3>
+            <p id="demo-detail-copy">
+              Keep useful text close, restore it to the clipboard, then paste it wherever you were working.
+            </p>
+            <dl>
+              <div>
+                <dt>Source</dt>
+                <dd id="demo-detail-source">TextEdit</dd>
+              </div>
+              <div>
+                <dt>Copies</dt>
+                <dd id="demo-detail-count">4</dd>
+              </div>
+              <div>
+                <dt>Action</dt>
+                <dd id="demo-detail-action">Press ⌘P to pin</dd>
+              </div>
+            </dl>
+          </article>
+        </div>
+      </section>
+
+      <section class="feature-grid" aria-label="Feature summary">
         <article>
-          <h2>Local by default</h2>
-          <p>Clipboard history is stored on your Mac, not sent to a service.</p>
+          <span>01</span>
+          <h2>Local-first history</h2>
+          <p>Clipboard contents are stored on your Mac, with controls for what Clack remembers.</p>
         </article>
         <article>
-          <h2>Fast to search</h2>
-          <p>Open Clack, type a few letters, and restore the right item.</p>
+          <span>02</span>
+          <h2>Text, files, and images</h2>
+          <p>Restore plain text, formatted text, file URLs, and image copies from the same compact menu.</p>
         </article>
         <article>
-          <h2>Formatted too</h2>
-          <p>Keep rich text, files, and images close, with source confidence and pasteboard metadata.</p>
+          <span>03</span>
+          <h2>Fast keyboard flow</h2>
+          <p>Use search, Command-number shortcuts, pinning, and delete shortcuts without leaving your context.</p>
         </article>
+        <article>
+          <span>04</span>
+          <h2>Useful metadata</h2>
+          <p>Hover for source, first copied, last copied, copy count, and pin/delete hints.</p>
+        </article>
+      </section>
+
+      <section class="testimonials" aria-label="Testimonials">
+        <figure>
+          <blockquote>
+            "Clack feels like the clipboard Apple forgot to ship: quiet, native, and right where I need it."
+          </blockquote>
+          <figcaption>Early tester</figcaption>
+        </figure>
+        <figure>
+          <blockquote>
+            "The menu is fast enough that copying links, notes, and commands finally feels reversible."
+          </blockquote>
+          <figcaption>macOS power user</figcaption>
+        </figure>
+      </section>
+
+      <section class="download-panel" aria-labelledby="download-title">
+        <div>
+          <p class="eyebrow">Coming to macOS</p>
+          <h2 id="download-title">Download the alpha today.</h2>
+          <p>
+            Available through GitHub Releases and the project Homebrew tap.
+            App Store distribution is planned for a future signed release.
+          </p>
+        </div>
+        <div class="download-actions">
+          <a class="button primary" href="https://github.com/In-sp3ctr3/clack/releases">
+            GitHub Releases
+          </a>
+          <a class="button secondary" href="https://github.com/In-sp3ctr3/homebrew-tap">
+            Homebrew tap
+          </a>
+        </div>
       </section>
     </main>
+
+    <footer class="site-footer">
+      <span>Clack</span>
+      <a href="https://github.com/In-sp3ctr3/clack">GitHub</a>
+      <a href="https://github.com/In-sp3ctr3/clack/blob/main/PRIVACY_MODEL.md">Privacy</a>
+      <a href="https://github.com/In-sp3ctr3/clack/blob/main/SECURITY.md">Security</a>
+    </footer>
+
+    <script>
+      const details = {
+        text: {
+          title: "Final launch copy for README",
+          copy: "Keep useful text close, restore it to the clipboard, then paste it wherever you were working.",
+          source: "TextEdit",
+          count: "4",
+          action: "Press ⌘P to pin"
+        },
+        image: {
+          title: "Screenshot from Finder",
+          copy: "Image copies show a thumbnail in the menu and a larger preview on hover.",
+          source: "Finder",
+          count: "2",
+          action: "Press ⌘⌫ to delete"
+        },
+        link: {
+          title: "https://github.com/In-sp3ctr3/clack",
+          copy: "URLs, notes, and repeated links stay searchable without cluttering the desktop.",
+          source: "Safari",
+          count: "6",
+          action: "Press ⌘P to pin"
+        },
+        command: {
+          title: "brew install --cask In-sp3ctr3/tap/clack",
+          copy: "Commands are easy to find again, with shortcuts for the newest nine items.",
+          source: "Terminal",
+          count: "3",
+          action: "Press ⌘1 to restore"
+        }
+      };
+
+      const rows = document.querySelectorAll(".demo-row");
+      const title = document.querySelector("#demo-detail-title");
+      const copy = document.querySelector("#demo-detail-copy");
+      const source = document.querySelector("#demo-detail-source");
+      const count = document.querySelector("#demo-detail-count");
+      const action = document.querySelector("#demo-detail-action");
+
+      rows.forEach((row) => {
+        row.addEventListener("click", () => {
+          rows.forEach((item) => item.classList.remove("is-selected"));
+          row.classList.add("is-selected");
+
+          const detail = details[row.dataset.demo];
+          title.textContent = detail.title;
+          copy.textContent = detail.copy;
+          source.textContent = detail.source;
+          count.textContent = detail.count;
+          action.textContent = detail.action;
+        });
+      });
+    </script>
   </body>
 </html>
