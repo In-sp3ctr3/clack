@@ -85,8 +85,8 @@ private func drawIcon(pixels: Int, to url: URL) throws {
   )
 
   drawBase()
-  drawClipboard()
-  drawMemoryMarks()
+  drawYellowFold()
+  drawDocument()
 
   NSGraphicsContext.restoreGraphicsState()
 
@@ -98,100 +98,144 @@ private func drawIcon(pixels: Int, to url: URL) throws {
 }
 
 private func drawBase() {
-  let rect = NSRect(x: 80, y: 80, width: 864, height: 864)
-  let basePath = NSBezierPath(roundedRect: rect, xRadius: 210, yRadius: 210)
+  let rect = NSRect(x: 96, y: 96, width: 832, height: 832)
+  let basePath = NSBezierPath(roundedRect: rect, xRadius: 178, yRadius: 178)
   let context = NSGraphicsContext.current?.cgContext
 
   context?.saveGState()
   context?.setShadow(
-    offset: CGSize(width: 0, height: -18),
-    blur: 42,
-    color: CGColor(red: 0.02, green: 0.06, blue: 0.14, alpha: 0.34)
+    offset: CGSize(width: 0, height: -22),
+    blur: 48,
+    color: CGColor(red: 0, green: 0, blue: 0, alpha: 0.46)
   )
   basePath.addClip()
   NSGradient(colors: [
-    NSColor(calibratedRed: 0.07, green: 0.24, blue: 0.54, alpha: 1),
-    NSColor(calibratedRed: 0.02, green: 0.47, blue: 0.69, alpha: 1),
-    NSColor(calibratedRed: 0.00, green: 0.66, blue: 0.60, alpha: 1)
-  ])?.draw(in: rect, angle: 45)
+    NSColor(calibratedWhite: 0.17, alpha: 1),
+    NSColor(calibratedWhite: 0.11, alpha: 1),
+    NSColor(calibratedWhite: 0.07, alpha: 1)
+  ])?.draw(in: rect, angle: -35)
   context?.restoreGState()
 
-  NSColor(calibratedWhite: 1, alpha: 0.18).setStroke()
-  basePath.lineWidth = 10
+  NSColor(calibratedWhite: 0, alpha: 0.10).setStroke()
+  basePath.lineWidth = 2
   basePath.stroke()
 }
 
-private func drawClipboard() {
+private func drawYellowFold() {
   let context = NSGraphicsContext.current?.cgContext
 
   context?.saveGState()
   context?.setShadow(
-    offset: CGSize(width: 0, height: -20),
-    blur: 34,
-    color: CGColor(red: 0, green: 0.05, blue: 0.10, alpha: 0.34)
+    offset: CGSize(width: 0, height: -14),
+    blur: 28,
+    color: CGColor(red: 0, green: 0, blue: 0, alpha: 0.36)
   )
 
-  let backSheet = NSBezierPath(
-    roundedRect: NSRect(x: 338, y: 226, width: 382, height: 536),
-    xRadius: 68,
-    yRadius: 68
+  let fold = NSBezierPath()
+  fold.move(to: NSPoint(x: 355, y: 650))
+  fold.line(to: NSPoint(x: 313, y: 650))
+  fold.curve(
+    to: NSPoint(x: 276, y: 613),
+    controlPoint1: NSPoint(x: 292, y: 650),
+    controlPoint2: NSPoint(x: 276, y: 634)
   )
-  NSColor(calibratedRed: 0.78, green: 0.92, blue: 0.96, alpha: 0.34).setFill()
-  backSheet.fill()
+  fold.line(to: NSPoint(x: 276, y: 468))
+  fold.curve(
+    to: NSPoint(x: 319, y: 380),
+    controlPoint1: NSPoint(x: 276, y: 430),
+    controlPoint2: NSPoint(x: 291, y: 405)
+  )
+  fold.line(to: NSPoint(x: 439, y: 260))
+  fold.curve(
+    to: NSPoint(x: 500, y: 224),
+    controlPoint1: NSPoint(x: 457, y: 242),
+    controlPoint2: NSPoint(x: 476, y: 224)
+  )
+  fold.line(to: NSPoint(x: 610, y: 224))
+  fold.curve(
+    to: NSPoint(x: 652, y: 266),
+    controlPoint1: NSPoint(x: 636, y: 224),
+    controlPoint2: NSPoint(x: 652, y: 240)
+  )
+  fold.line(to: NSPoint(x: 652, y: 321))
+  fold.line(to: NSPoint(x: 593, y: 321))
+  fold.curve(
+    to: NSPoint(x: 548, y: 339),
+    controlPoint1: NSPoint(x: 576, y: 321),
+    controlPoint2: NSPoint(x: 561, y: 326)
+  )
+  fold.line(to: NSPoint(x: 369, y: 518))
+  fold.curve(
+    to: NSPoint(x: 355, y: 552),
+    controlPoint1: NSPoint(x: 360, y: 527),
+    controlPoint2: NSPoint(x: 355, y: 538)
+  )
+  fold.close()
 
-  let sheet = NSBezierPath(
-    roundedRect: NSRect(x: 292, y: 264, width: 440, height: 552),
-    xRadius: 76,
-    yRadius: 76
-  )
-  NSColor(calibratedRed: 0.96, green: 0.98, blue: 0.98, alpha: 1).setFill()
-  sheet.fill()
+  fold.addClip()
+  NSGradient(colors: [
+    NSColor(calibratedRed: 1.00, green: 0.77, blue: 0.17, alpha: 1),
+    NSColor(calibratedRed: 1.00, green: 0.52, blue: 0.00, alpha: 1)
+  ])?.draw(in: NSRect(x: 256, y: 210, width: 420, height: 470), angle: 104)
   context?.restoreGState()
-
-  NSColor(calibratedRed: 0.09, green: 0.28, blue: 0.52, alpha: 0.16).setStroke()
-  sheet.lineWidth = 8
-  sheet.stroke()
-
-  let clip = NSBezierPath(
-    roundedRect: NSRect(x: 384, y: 704, width: 256, height: 114),
-    xRadius: 46,
-    yRadius: 46
-  )
-  NSColor(calibratedRed: 0.88, green: 0.95, blue: 0.98, alpha: 1).setFill()
-  clip.fill()
-
-  NSColor(calibratedRed: 0.06, green: 0.40, blue: 0.70, alpha: 0.22).setStroke()
-  clip.lineWidth = 8
-  clip.stroke()
 }
 
-private func drawMemoryMarks() {
-  let blue = NSColor(calibratedRed: 0.08, green: 0.40, blue: 0.74, alpha: 1)
-  let teal = NSColor(calibratedRed: 0.00, green: 0.58, blue: 0.55, alpha: 1)
+private func drawDocument() {
+  let context = NSGraphicsContext.current?.cgContext
 
-  drawRoundedLine(x: 362, y: 594, width: 304, height: 34, color: blue)
-  drawRoundedLine(x: 362, y: 508, width: 238, height: 34, color: blue.withAlphaComponent(0.82))
-  drawRoundedLine(x: 362, y: 422, width: 286, height: 34, color: blue.withAlphaComponent(0.68))
-
-  for (index, point) in [
-    CGPoint(x: 670, y: 502),
-    CGPoint(x: 716, y: 462),
-    CGPoint(x: 668, y: 420)
-  ].enumerated() {
-    let dot = NSBezierPath(ovalIn: NSRect(x: point.x, y: point.y, width: 28, height: 28))
-    (index == 1 ? teal : teal.withAlphaComponent(0.72)).setFill()
-    dot.fill()
-  }
-}
-
-private func drawRoundedLine(x: CGFloat, y: CGFloat, width: CGFloat, height: CGFloat, color: NSColor) {
-  let path = NSBezierPath(
-    roundedRect: NSRect(x: x, y: y, width: width, height: height),
-    xRadius: height / 2,
-    yRadius: height / 2
+  context?.saveGState()
+  context?.setShadow(
+    offset: CGSize(width: 0, height: -16),
+    blur: 32,
+    color: CGColor(red: 0, green: 0, blue: 0, alpha: 0.38)
   )
-  color.setFill()
-  path.fill()
+
+  let document = NSBezierPath()
+  document.move(to: NSPoint(x: 431, y: 772))
+  document.line(to: NSPoint(x: 574, y: 772))
+  document.curve(
+    to: NSPoint(x: 619, y: 754),
+    controlPoint1: NSPoint(x: 592, y: 772),
+    controlPoint2: NSPoint(x: 608, y: 766)
+  )
+  document.line(to: NSPoint(x: 712, y: 661))
+  document.curve(
+    to: NSPoint(x: 733, y: 611),
+    controlPoint1: NSPoint(x: 726, y: 647),
+    controlPoint2: NSPoint(x: 733, y: 630)
+  )
+  document.line(to: NSPoint(x: 733, y: 382))
+  document.curve(
+    to: NSPoint(x: 684, y: 333),
+    controlPoint1: NSPoint(x: 733, y: 354),
+    controlPoint2: NSPoint(x: 712, y: 333)
+  )
+  document.line(to: NSPoint(x: 611, y: 333))
+  document.curve(
+    to: NSPoint(x: 566, y: 352),
+    controlPoint1: NSPoint(x: 593, y: 333),
+    controlPoint2: NSPoint(x: 578, y: 340)
+  )
+  document.line(to: NSPoint(x: 406, y: 512))
+  document.curve(
+    to: NSPoint(x: 392, y: 547),
+    controlPoint1: NSPoint(x: 397, y: 521),
+    controlPoint2: NSPoint(x: 392, y: 532)
+  )
+  document.line(to: NSPoint(x: 392, y: 731))
+  document.curve(
+    to: NSPoint(x: 431, y: 772),
+    controlPoint1: NSPoint(x: 392, y: 755),
+    controlPoint2: NSPoint(x: 407, y: 772)
+  )
+  document.close()
+
+  document.addClip()
+  NSGradient(colors: [
+    NSColor(calibratedWhite: 1.00, alpha: 1),
+    NSColor(calibratedWhite: 0.93, alpha: 1)
+  ])?.draw(in: NSRect(x: 370, y: 320, width: 390, height: 470), angle: -42)
+  context?.restoreGState()
 }
 
 private enum IconGenerationError: Error {
