@@ -64,7 +64,7 @@ struct ClackPopoverView: View {
       height: currentContentSize.height,
       alignment: .trailing
     )
-    .background(.regularMaterial)
+    .background(Color(nsColor: .windowBackgroundColor))
     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     .overlay(
       RoundedRectangle(cornerRadius: 12, style: .continuous)
