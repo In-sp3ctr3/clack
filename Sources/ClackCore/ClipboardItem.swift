@@ -202,13 +202,6 @@ public struct ClipboardItem: Codable, Hashable, Identifiable {
       return true
     }
 
-    let options: String.CompareOptions = switch mode {
-    case .contains:
-      [.caseInsensitive, .diacriticInsensitive]
-    case .exact:
-      []
-    }
-
     let searchableValues = [
       kind.rawValue,
       content,
@@ -219,11 +212,31 @@ public struct ClipboardItem: Codable, Hashable, Identifiable {
       pasteboardTypes.joined(separator: " ")
     ].compactMap(\.self)
 
-    if searchableValues.contains(where: { $0.range(of: cleanedQuery, options: options) != nil }) {
-      return true
-    }
+    switch mode {
+    case .contains:
+      return searchableValues.contains {
+        $0.range(of: cleanedQuery, options: [.caseInsensitive, .diacriticInsensitive]) != nil
+      }
+    case .exact:
+      return searchableValues.contains {
+        $0.trimmingCharacters(in: .whitespacesAndNewlines)
+          .localizedCaseInsensitiveCompare(cleanedQuery) == .orderedSame
+      }
+    case .regularExpression:
+      guard
+        let expression = try? NSRegularExpression(
+          pattern: cleanedQuery,
+          options: [.caseInsensitive]
+        )
+      else {
+        return false
+      }
 
-    return false
+      return searchableValues.contains { value in
+        let range = NSRange(location: 0, length: (value as NSString).length)
+        return expression.firstMatch(in: value, options: [], range: range) != nil
+      }
+    }
   }
 
   private var filePreview: String {

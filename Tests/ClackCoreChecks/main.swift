@@ -22,6 +22,7 @@ struct ClackCoreChecks {
       Check(name: "history limit prunes old unpinned items", run: testHistoryLimitPrunesOldUnpinnedItems),
       Check(name: "pinned items survive limit and clear", run: testPinnedItemsSurviveLimitAndClear),
       Check(name: "search matches content and source app", run: testSearchMatchesContentAndSourceApp),
+      Check(name: "search supports exact and regex modes", run: testSearchSupportsExactAndRegexModes),
       Check(name: "formatted text stores rich representations", run: testFormattedTextStoresRichRepresentations),
       Check(name: "source confidence persists and updates", run: testSourceConfidencePersistsAndUpdates),
       Check(name: "file copies store URLs and deduplicate", run: testFileCopiesStoreURLsAndDeduplicate),
@@ -137,6 +138,22 @@ struct ClackCoreChecks {
     try expect(item.sourceConfidence == .frontmostApplication, "expected source confidence to update")
     try expect(item.sourceCapturedAt == secondDate, "expected source capture date to update")
     try expect(item.copyCount == 2, "expected duplicate count to update")
+  }
+
+  @MainActor
+  private static func testSearchSupportsExactAndRegexModes() throws {
+    let item = ClipboardItem(
+      content: "invoice 1042",
+      sourceApp: "Preview",
+      firstCopiedAt: Date(timeIntervalSince1970: 100),
+      lastCopiedAt: Date(timeIntervalSince1970: 100)
+    )
+
+    try expect(item.matches("invoice", mode: .contains), "expected contains search to match substring")
+    try expect(!item.matches("invoice", mode: .exact), "expected exact search to reject substring")
+    try expect(item.matches("invoice 1042", mode: .exact), "expected exact search to match full value")
+    try expect(item.matches("invoice \\d+", mode: .regularExpression), "expected regex search to match")
+    try expect(!item.matches("[", mode: .regularExpression), "expected invalid regex to fail closed")
   }
 
   @MainActor
@@ -393,11 +410,16 @@ struct ClackCoreChecks {
     preferences.saveText = false
     preferences.saveFiles = true
     preferences.saveImages = true
+    preferences.pasteAutomatically = true
+    preferences.pasteWithoutFormatting = true
     preferences.sortMode = .content
     preferences.searchMode = .exact
+    preferences.openShortcut = ClackKeyboardShortcut(keyCode: 9, character: "V", modifiers: ClackKeyboardShortcut.command)
     preferences.showFooter = false
     preferences.addIgnoredApplication("Safari")
     preferences.addIgnoredApplication("Safari")
+    preferences.addIgnoredPasteboardType("public.png")
+    preferences.resetIgnoredPasteboardTypes()
     preferences.addIgnoredRegularExpression("token_[a-z]+")
     preferences.temporarilyIgnoreNewCopies = true
 
@@ -407,10 +429,17 @@ struct ClackCoreChecks {
     try expect(reloadedPreferences.saveText == false, "expected save text setting to persist")
     try expect(reloadedPreferences.saveFiles, "expected save files setting to persist")
     try expect(reloadedPreferences.saveImages, "expected save images setting to persist")
+    try expect(reloadedPreferences.pasteAutomatically, "expected paste automatically setting to persist")
+    try expect(reloadedPreferences.pasteWithoutFormatting, "expected paste formatting setting to persist")
     try expect(reloadedPreferences.sortMode == .content, "expected sort mode to persist")
     try expect(reloadedPreferences.searchMode == .exact, "expected search mode to persist")
+    try expect(reloadedPreferences.openShortcut.display == "⌘V", "expected open shortcut to persist")
     try expect(reloadedPreferences.showFooter == false, "expected footer setting to persist")
     try expect(reloadedPreferences.ignoredApplications == ["Safari"], "expected ignored app list to stay unique")
+    try expect(
+      reloadedPreferences.ignoredPasteboardTypes == ClackPreferences.defaultIgnoredPasteboardTypes,
+      "expected ignored pasteboard types to reset to defaults"
+    )
     try expect(reloadedPreferences.ignoredRegularExpressions == ["token_[a-z]+"], "expected ignored regex to persist")
     try expect(reloadedPreferences.temporarilyIgnoreNewCopies, "expected ignore toggle to persist")
   }

@@ -3,7 +3,7 @@ import Foundation
 
 @MainActor
 public final class ClipboardHistoryStore: ObservableObject {
-  nonisolated public static let defaultLimit = 500
+  nonisolated public static let defaultLimit = 200
   nonisolated public static let minimumLimit = 1
   nonisolated public static let maximumLimit = 5_000
 
