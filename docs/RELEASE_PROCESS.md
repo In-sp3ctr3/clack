@@ -16,13 +16,16 @@ Early releases may use `0.x.y` while the product is still changing quickly. Alph
 
 1. Confirm all CI checks pass on `main`.
 2. Update `CHANGELOG.md`.
-3. Build the app for macOS with `./scripts/build_app.sh`.
-4. Confirm the app artifact is Universal 2 when supported.
-5. Tag the release with `vX.Y.Z` or `vX.Y.Z-alpha.N`.
-6. The release workflow publishes a dated GitHub prerelease with dated DMG, zip, and checksum assets.
-7. Sign and notarize the app when credentials are available.
-8. Replace unsigned artifacts before promoting a release out of prerelease.
-9. Update the website download link.
+3. Run `swift run ClackCoreChecks`.
+4. Build the app for macOS with `./scripts/build_app.sh`.
+5. Package the DMG with `./scripts/package_dmg.sh` when testing release assets locally.
+6. Confirm the app artifact is Universal 2 when supported.
+7. Tag the release with `vX.Y.Z` or `vX.Y.Z-alpha.N`.
+8. The release workflow publishes a dated GitHub prerelease with dated DMG, zip, and checksum assets.
+9. Sign and notarize the app when credentials are available.
+10. Replace unsigned artifacts before promoting a release out of prerelease.
+11. Update the website download link.
+12. Update the Homebrew cask in the project tap.
 
 ## Distribution
 
@@ -37,6 +40,20 @@ brew install --cask In-sp3ctr3/tap/clack
 ```
 
 The cask can move to Homebrew's official cask repository after stable signed and notarized releases are available and the project meets Homebrew's acceptance expectations.
+
+## Signing and Notarization
+
+Unsigned alpha builds are acceptable for early testers, but stable releases should be signed and notarized.
+
+Signing and notarization require:
+
+- An Apple Developer Program account.
+- A Developer ID Application certificate.
+- A hardened runtime signing configuration.
+- Notarization credentials stored as GitHub Actions secrets.
+- A local verification pass using `spctl` and `codesign`.
+
+Until those credentials exist, release notes and install docs must clearly state that alpha builds are unsigned and not notarized.
 
 ## Packages
 

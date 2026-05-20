@@ -7,10 +7,12 @@ Thanks for helping make Clack better. This project is intentionally small, but t
 - Be kind and direct.
 - Keep changes focused.
 - Prefer small pull requests over broad rewrites.
-- Include screenshots or recordings for UI changes once the app exists.
+- Include screenshots or recordings for UI changes.
 - Do not include real secrets, passwords, tokens, private clipboard data, or personal user content in issues, tests, fixtures, or screenshots.
 
 ## Local Development
+
+Clone the project, install a recent Xcode or Swift toolchain, then work from a short-lived branch.
 
 Run the core checks:
 
@@ -23,6 +25,13 @@ Build a local app bundle:
 ```sh
 ./scripts/build_app.sh
 open .build/apple/Clack.app
+```
+
+Package a local DMG when validating release behavior:
+
+```sh
+./scripts/package_dmg.sh
+open .build/apple/Clack.dmg
 ```
 
 ## Branching
@@ -46,7 +55,8 @@ Maintainers may also use `codex/<short-name>` for assisted maintenance work.
 4. Keep the diff small enough to review in one sitting.
 5. Fill out the pull request template with a short, specific brief.
 6. Make sure CI passes.
-7. Wait for review before merging unless you are doing an approved maintainer-only housekeeping change.
+7. Include screenshots or a short recording for UI changes.
+8. Wait for review before merging unless you are doing an approved maintainer-only housekeeping change.
 
 ## PR Size
 
@@ -97,7 +107,18 @@ Commit guidelines:
 
 ## Testing
 
-Run `swift run ClackCoreChecks` before opening a pull request. The repository hygiene workflow also verifies that required project files are present and that merge conflict markers are not committed.
+Run `swift run ClackCoreChecks` before opening a pull request. For app or packaging changes, also run `./scripts/build_app.sh`. For release changes, run `./scripts/package_dmg.sh` when practical.
+
+The repository hygiene workflow also verifies that required project files are present and that merge conflict markers are not committed.
+
+## Documentation
+
+Update docs in the same pull request when behavior changes. In particular:
+
+- Update `README.md` for user-facing features, install instructions, or project status.
+- Update `CHANGELOG.md` for notable user-facing changes.
+- Update `docs/PRIVACY_MODEL.md` for storage, metadata, diagnostics, or clipboard handling changes.
+- Update `docs/RELEASE_PROCESS.md` for packaging, signing, notarization, or distribution changes.
 
 ## Security and Privacy
 

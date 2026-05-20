@@ -20,6 +20,20 @@ body:
     attributes:
       label: macOS version
       placeholder: "Example: macOS 15.5"
+  - type: input
+    id: clack-version
+    attributes:
+      label: Clack version
+      placeholder: "Example: 0.1.0-alpha.1"
+  - type: dropdown
+    id: install-method
+    attributes:
+      label: Install method
+      options:
+        - GitHub Releases
+        - Homebrew
+        - Local build
+        - Other
   - type: textarea
     id: steps
     attributes:

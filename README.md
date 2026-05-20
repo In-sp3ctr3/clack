@@ -3,7 +3,7 @@
 [![Repository Hygiene](https://github.com/In-sp3ctr3/clack/actions/workflows/repo-hygiene.yml/badge.svg)](https://github.com/In-sp3ctr3/clack/actions/workflows/repo-hygiene.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Clack is a native macOS clipboard history app that lives in the menu bar. It keeps copied text, formatted text, files, and images close at hand, then lets you search, pin, restore, or clear them without opening a full window.
+Clack is a native macOS clipboard history app that lives in the menu bar. It keeps copied text, formatted text, files, and images close at hand, then lets you search, pin, restore, preview, or clear them without opening a full window.
 
 Clack is local-first by design. Clipboard contents are stored on your Mac and are not sent to a server.
 
@@ -23,10 +23,11 @@ Alpha builds are unsigned and not notarized yet, so macOS may warn before openin
 
 - Keeps a searchable clipboard history in the macOS menu bar.
 - Stores plain text, formatted text, file URLs, and images.
-- Restores saved items back to the system clipboard.
+- Restores saved items back to the system clipboard, with optional automatic paste behavior.
 - Pins important items so they survive cleanup.
+- Shows compact image thumbnails in the menu and larger previews on hover.
 - Shows first copied, last copied, copy count, pasteboard types, and source confidence.
-- Provides quick keyboard access to recent items.
+- Provides quick keyboard access to recent items, pinning, deletion, clearing, preferences, and quit.
 - Supports ignore rules for apps, pasteboard types, and regular expressions.
 - Keeps history local unless a future feature explicitly says otherwise.
 
@@ -34,7 +35,7 @@ Alpha builds are unsigned and not notarized yet, so macOS may warn before openin
 
 Launch Clack and use the menu bar icon to open your clipboard history. Select any item to put it back on the system clipboard, then paste it wherever you were working.
 
-Use search to narrow the list, pin items you reuse often, and clear unpinned history when it gets noisy. Preferences include storage limits, saved content types, appearance controls, ignore lists, launch at login, and cleanup behavior.
+Use search to narrow the list, pin items you reuse often, and clear unpinned history when it gets noisy. Hover an item to see a larger preview with metadata. Preferences include storage limits, saved content types, appearance controls, ignore lists, launch at login, shortcut configuration, and cleanup behavior.
 
 Source labels are confidence-based. macOS does not expose a guaranteed origin for every pasteboard change, so Clack records whether the source came from the frontmost app, a recently active app fallback, or an unknown source.
 
@@ -102,11 +103,12 @@ Active priorities:
 
 - Signed and notarized releases.
 - More real-world clipboard edge case testing.
+- UI polish against the final design templates.
 - Better empty states and failure messages.
-- Configurable shortcuts.
+- More shortcut customization beyond the current core actions.
 - Storage hardening before a stable release.
 
-See [docs/ROADMAP.md](docs/ROADMAP.md) and [docs/RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md) for more detail.
+See [docs](docs/README.md), [docs/ROADMAP.md](docs/ROADMAP.md), and [docs/RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md) for more detail.
 
 ## Contributing
 
@@ -120,9 +122,17 @@ Contributions are welcome while the project is small and easy to shape. Good pla
 
 Please read [CONTRIBUTING.md](CONTRIBUTING.md), [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md), and [GOVERNANCE.md](GOVERNANCE.md) before opening a pull request.
 
+## Project Docs
+
+- [Privacy model](docs/PRIVACY_MODEL.md)
+- [Roadmap](docs/ROADMAP.md)
+- [Release process](docs/RELEASE_PROCESS.md)
+- [Contributing guide](CONTRIBUTING.md)
+- [Security policy](SECURITY.md)
+
 ## Website
 
-The Vercel-ready download page lives in [site](site).
+The Vercel-ready download page lives in [site](site). See [site/README.md](site/README.md) for local website commands.
 
 ## License
 

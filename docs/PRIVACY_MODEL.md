@@ -20,6 +20,8 @@ Clack stores clipboard history in the user's Application Support directory:
 
 The file is local JSON so the early app is easy to inspect and debug. It can include copied text, rich text representations, copied file paths, image data, pasteboard type names, and source metadata when those items are captured. Storage hardening, such as encryption or automatic sensitive-content filtering, should be considered before a stable release.
 
+Preferences can reduce what Clack stores. Users can disable text, files, or images; set a history limit; clear unpinned history; clear history on quit; and temporarily ignore new copies.
+
 ## Sensitive Data
 
 Users often copy passwords, tokens, private messages, addresses, financial data, and work material. Clack should assume clipboard data may be sensitive even when it looks ordinary.
@@ -29,6 +31,12 @@ Users often copy passwords, tokens, private messages, addresses, financial data,
 Clack may store metadata such as first copied time, last copied time, copy count, pinned state, pasteboard types, source app, bundle identifier, process identifier, source confidence, and source observation time.
 
 Source confidence is explicit because macOS does not expose guaranteed origin metadata for every pasteboard change. Clack records whether the label came from the frontmost application at the time of the pasteboard change, a recently active app fallback, or an unknown source. Universal Clipboard participates through the general pasteboard, but Apple does not provide a public macOS API for its remote-device origin.
+
+## Network Behavior
+
+Clack's clipboard history features are local. The app does not need a server to store or restore clipboard items.
+
+Opening release pages, website links, or system settings may leave the app through macOS or the user's browser. Future diagnostics, update checks, or sync features should be opt-in or clearly documented before release.
 
 ## Future Review Areas
 
