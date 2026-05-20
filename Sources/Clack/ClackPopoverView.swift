@@ -3,13 +3,23 @@ import AppKit
 import SwiftUI
 
 struct ClackPopoverView: View {
+  static let compactContentSize = NSSize(width: 330, height: 480)
+
+  private static let expandedContentSize = NSSize(width: 648, height: 480)
+  private static let menuWidth: CGFloat = 330
+  private static let previewWidth: CGFloat = 310
+  private static let popoverHeight: CGFloat = 480
+
   @ObservedObject var store: ClipboardHistoryStore
   @ObservedObject var preferences: ClackPreferences
 
   let actions: ClipboardActions
+  let setContentSize: (NSSize) -> Void
 
   @FocusState private var searchFocused: Bool
   @State private var selectedItemID: ClipboardItem.ID?
+  @State private var hoveredItemID: ClipboardItem.ID?
+  @State private var detailCardIsHovered = false
 
   private var visibleItems: [ClipboardItem] {
     let filteredItems = store.items.filter {
@@ -31,62 +41,107 @@ struct ClackPopoverView: View {
     return visibleItems.first
   }
 
-  var body: some View {
-    VStack(spacing: 0) {
-      if showsSearchField {
-        searchBar
+  private var hoveredItem: ClipboardItem? {
+    guard let hoveredItemID else {
+      return nil
+    }
 
-        Divider()
+    return visibleItems.first { $0.id == hoveredItemID }
+  }
+
+  private var currentContentSize: NSSize {
+    hoveredItem == nil ? Self.compactContentSize : Self.expandedContentSize
+  }
+
+  var body: some View {
+    HStack(alignment: .top, spacing: 8) {
+      if let hoveredItem {
+        HoverDetailCard(item: hoveredItem)
+          .frame(width: Self.previewWidth, height: Self.popoverHeight)
+          .transition(.opacity.combined(with: .move(edge: .trailing)))
+          .onHover { isHovering in
+            detailCardIsHovered = isHovering
+
+            if !isHovering {
+              clearHoveredItemAfterDelay(hoveredItem.id)
+            }
+          }
       }
+
+      mainMenu
+    }
+    .frame(
+      width: currentContentSize.width,
+      height: currentContentSize.height,
+      alignment: .trailing
+    )
+    .background(Color.clear)
+    .background(
+      KeyboardNavigationMonitor(
+        moveSelection: moveSelection,
+        restoreSelection: restoreSelectedItem,
+        togglePinSelection: togglePinnedSelection,
+        deleteSelection: deleteSelectedItem
+      )
+      .frame(width: 0, height: 0)
+      .accessibilityHidden(true)
+    )
+    .animation(.easeOut(duration: 0.12), value: hoveredItemID)
+    .onAppear {
+      searchFocused = true
+      syncSelectionWithVisibleItems()
+      setContentSize(currentContentSize)
+    }
+    .onChange(of: visibleItemIDs) { _ in
+      syncSelectionWithVisibleItems()
+    }
+    .onChange(of: hoveredItemID) { _ in
+      setContentSize(currentContentSize)
+    }
+  }
+
+  private var mainMenu: some View {
+    VStack(spacing: 0) {
+      header
+
+      Divider()
 
       itemList
 
       Divider()
 
-      DetailPane(
-        item: selectedItem,
-        preferences: preferences,
-        actions: actions
-      )
+      footer
+    }
+    .frame(width: Self.menuWidth, height: Self.popoverHeight)
+    .background(Color(nsColor: .windowBackgroundColor))
+  }
 
-      if preferences.showFooter {
-        Divider()
+  private var header: some View {
+    VStack(spacing: 7) {
+      Text("Clack")
+        .font(.system(size: 13, weight: .semibold))
+        .foregroundStyle(.primary)
+        .frame(maxWidth: .infinity, alignment: .center)
 
-        footer
+      if showsSearchField {
+        searchBar
       }
     }
-    .frame(width: 460, height: 620)
-    .background(Color(nsColor: .windowBackgroundColor))
-    .background(
-      KeyboardNavigationMonitor(
-        moveSelection: moveSelection,
-        restoreSelection: restoreSelectedItem
-      )
-      .frame(width: 0, height: 0)
-      .accessibilityHidden(true)
-    )
-    .onAppear {
-      searchFocused = true
-      syncSelectionWithVisibleItems()
-    }
-    .onChange(of: visibleItemIDs) { _ in
-      syncSelectionWithVisibleItems()
-    }
+    .padding(.horizontal, 10)
+    .padding(.top, 8)
+    .padding(.bottom, showsSearchField ? 9 : 8)
   }
 
   private var searchBar: some View {
-    HStack(spacing: 8) {
-      if preferences.showTitleBeforeSearchField {
-        Text("Clack")
-          .font(.headline)
-      }
-
+    HStack(spacing: 6) {
       Image(systemName: "magnifyingglass")
+        .font(.system(size: 11, weight: .medium))
         .foregroundStyle(.secondary)
         .accessibilityHidden(true)
 
       TextField("Search", text: $store.searchText)
         .textFieldStyle(.plain)
+        .font(.system(size: 13))
         .focused($searchFocused)
         .onSubmit(restoreSelectedItem)
         .accessibilityLabel("Search clipboard history")
@@ -97,6 +152,7 @@ struct ClackPopoverView: View {
           store.searchText = ""
         } label: {
           Image(systemName: "xmark.circle.fill")
+            .font(.system(size: 12))
         }
         .buttonStyle(.plain)
         .foregroundStyle(.secondary)
@@ -104,20 +160,23 @@ struct ClackPopoverView: View {
         .help("Clear search")
       }
     }
-    .padding(.horizontal, 14)
-    .padding(.vertical, 12)
+    .padding(.horizontal, 8)
+    .frame(height: 26)
+    .background(Color(nsColor: .controlBackgroundColor))
+    .clipShape(RoundedRectangle(cornerRadius: 6))
   }
 
   @ViewBuilder
   private var itemList: some View {
     if visibleItems.isEmpty {
-      VStack {
+      VStack(spacing: 6) {
         Spacer()
         Text("No clipboard items")
+          .font(.system(size: 13))
           .foregroundStyle(.secondary)
         Spacer()
       }
-      .frame(maxWidth: .infinity)
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
     } else {
       ScrollView {
         LazyVStack(spacing: 0) {
@@ -126,7 +185,7 @@ struct ClackPopoverView: View {
 
             if item.id != visibleItems.last?.id {
               Divider()
-                .padding(.leading, 42)
+                .padding(.leading, 10)
             }
           }
         }
@@ -136,86 +195,64 @@ struct ClackPopoverView: View {
 
   @ViewBuilder
   private func shortcutRow(item: ClipboardItem, index: Int) -> some View {
-    if index < 9 {
-      ClipboardRow(
-        item: item,
-        shortcutNumber: index + 1,
-        isSelected: selectedItem?.id == item.id,
-        showIcon: preferences.showApplicationIcons,
-        imageHeight: preferences.imageHeight,
-        restore: { actions.restore(item) },
-        togglePin: { actions.togglePin(item) },
-        delete: { actions.delete(item) },
-        onHover: { isHovering in
-          if isHovering {
-            selectedItemID = item.id
-          }
+    let shortcutNumber = index < 9 ? index + 1 : nil
+    let row = CompactClipboardRow(
+      item: item,
+      shortcutNumber: shortcutNumber,
+      isSelected: selectedItem?.id == item.id,
+      restore: { actions.restore(item) },
+      onHover: { isHovering in
+        if isHovering {
+          selectedItemID = item.id
+          hoveredItemID = item.id
+        } else if hoveredItemID == item.id {
+          clearHoveredItemAfterDelay(item.id)
         }
-      )
-      .keyboardShortcut(KeyEquivalent(Character("\(index + 1)")), modifiers: [.command])
+      }
+    )
+
+    if let shortcutNumber {
+      row.keyboardShortcut(KeyEquivalent(Character("\(shortcutNumber)")), modifiers: [.command])
     } else {
-      ClipboardRow(
-        item: item,
-        shortcutNumber: nil,
-        isSelected: selectedItem?.id == item.id,
-        showIcon: preferences.showApplicationIcons,
-        imageHeight: preferences.imageHeight,
-        restore: { actions.restore(item) },
-        togglePin: { actions.togglePin(item) },
-        delete: { actions.delete(item) },
-        onHover: { isHovering in
-          if isHovering {
-            selectedItemID = item.id
-          }
-        }
-      )
+      row
     }
   }
 
   private var footer: some View {
-    HStack(spacing: 10) {
-      Button {
-        actions.clearUnpinned()
-      } label: {
-        Label("Clear", systemImage: "trash")
-      }
+    VStack(spacing: 0) {
+      FooterMenuRow(
+        title: "Clear",
+        shortcut: "⇧⌘K",
+        isDisabled: store.items.allSatisfy(\.isPinned),
+        action: actions.clearUnpinned
+      )
       .keyboardShortcut("k", modifiers: [.command, .shift])
-      .disabled(store.items.allSatisfy(\.isPinned))
       .accessibilityHint("Clears every unpinned clipboard item.")
 
-      Spacer()
-
-      Button {
-        actions.showPreferences()
-      } label: {
-        Image(systemName: "gearshape")
-      }
+      FooterMenuRow(
+        title: "Preferences",
+        shortcut: "⌘,",
+        action: actions.showPreferences
+      )
       .keyboardShortcut(",", modifiers: [.command])
-      .accessibilityLabel("Preferences")
       .accessibilityHint("Open Clack preferences.")
-      .help("Preferences")
 
-      Button {
-        actions.showAbout()
-      } label: {
-        Image(systemName: "info.circle")
-      }
-      .accessibilityLabel("About Clack")
+      FooterMenuRow(
+        title: "About",
+        shortcut: nil,
+        action: actions.showAbout
+      )
       .accessibilityHint("Open the About window.")
-      .help("About Clack")
 
-      Button {
-        actions.quit()
-      } label: {
-        Image(systemName: "power")
-      }
+      FooterMenuRow(
+        title: "Quit",
+        shortcut: "⌘Q",
+        action: actions.quit
+      )
       .keyboardShortcut("q", modifiers: [.command])
-      .accessibilityLabel("Quit Clack")
-      .accessibilityHint("Quit the Clack app.")
-      .help("Quit Clack")
+      .accessibilityHint("Quit Clack.")
     }
-    .padding(.horizontal, 12)
-    .padding(.vertical, 10)
+    .padding(.vertical, 5)
   }
 
   private var showsSearchField: Bool {
@@ -277,10 +314,45 @@ struct ClackPopoverView: View {
     actions.restore(selectedItem)
   }
 
+  private func togglePinnedSelection() {
+    guard let selectedItem else {
+      return
+    }
+
+    actions.togglePin(selectedItem)
+  }
+
+  private func deleteSelectedItem() {
+    guard let selectedItem else {
+      return
+    }
+
+    actions.delete(selectedItem)
+
+    if hoveredItemID == selectedItem.id {
+      hoveredItemID = nil
+    }
+  }
+
+  private func clearHoveredItemAfterDelay(_ itemID: ClipboardItem.ID) {
+    Task { @MainActor in
+      try? await Task.sleep(for: .milliseconds(160))
+
+      if hoveredItemID == itemID && !detailCardIsHovered {
+        hoveredItemID = nil
+      }
+    }
+  }
+
   private func syncSelectionWithVisibleItems() {
     guard !visibleItems.isEmpty else {
       selectedItemID = nil
+      hoveredItemID = nil
       return
+    }
+
+    if let hoveredItemID, !visibleItems.contains(where: { $0.id == hoveredItemID }) {
+      self.hoveredItemID = nil
     }
 
     guard
@@ -293,76 +365,38 @@ struct ClackPopoverView: View {
   }
 }
 
-private struct ClipboardRow: View {
+private struct CompactClipboardRow: View {
   let item: ClipboardItem
   let shortcutNumber: Int?
   let isSelected: Bool
-  let showIcon: Bool
-  let imageHeight: Int
   let restore: () -> Void
-  let togglePin: () -> Void
-  let delete: () -> Void
   let onHover: (Bool) -> Void
 
   var body: some View {
     Button(action: restore) {
-      HStack(alignment: .top, spacing: 10) {
-        if let thumbnailImage {
-          Image(nsImage: thumbnailImage)
-            .resizable()
-            .scaledToFill()
-            .frame(width: thumbnailSideLength, height: thumbnailSideLength)
-            .clipShape(RoundedRectangle(cornerRadius: 6))
-            .accessibilityHidden(true)
-        } else if showIcon || item.isPinned {
-          Image(systemName: item.isPinned ? "pin.fill" : item.kind.systemImageName)
-            .frame(width: 18)
-            .foregroundStyle(item.isPinned ? .blue : .secondary)
-        }
-
-        VStack(alignment: .leading, spacing: 5) {
-          Text(item.preview)
-            .font(.body)
-            .foregroundStyle(.primary)
-            .lineLimit(2)
-            .multilineTextAlignment(.leading)
-
-          HStack(spacing: 8) {
-            Text(item.kind.rawValue)
-            Text(item.sourceApp ?? "Unknown")
-            Text(item.sourceConfidenceDescription)
-            Text(relativeDateFormatter.localizedString(for: item.lastCopiedAt, relativeTo: Date()))
-            Text(copyCountText)
-          }
-          .font(.caption)
-          .foregroundStyle(.secondary)
+      HStack(spacing: 10) {
+        Text(rowPreview)
+          .font(.system(size: 13, weight: item.isPinned ? .semibold : .regular))
+          .foregroundStyle(.primary)
           .lineLimit(1)
-        }
-
-        Spacer(minLength: 8)
+          .truncationMode(.tail)
+          .frame(maxWidth: .infinity, alignment: .leading)
 
         if let shortcutNumber {
           Text("⌘\(shortcutNumber)")
-            .font(.caption)
+            .font(.system(size: 12))
             .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .frame(width: 28, alignment: .trailing)
         }
       }
       .contentShape(Rectangle())
-      .padding(.horizontal, 12)
-      .padding(.vertical, 9)
+      .padding(.horizontal, 10)
+      .frame(height: 28)
       .background(rowBackground)
     }
     .buttonStyle(.plain)
     .onHover(perform: onHover)
-    .contextMenu {
-      Button(item.isPinned ? "Unpin" : "Pin") {
-        togglePin()
-      }
-
-      Button("Delete", role: .destructive) {
-        delete()
-      }
-    }
     .accessibilityElement(children: .ignore)
     .accessibilityLabel(item.preview)
     .accessibilityValue(accessibilityValue)
@@ -370,44 +404,27 @@ private struct ClipboardRow: View {
     .accessibilityAddTraits(isSelected ? .isSelected : [])
   }
 
-  private var copyCountText: String {
-    item.copyCount == 1 ? "1 copy" : "\(item.copyCount) copies"
-  }
-
-  private var thumbnailImage: NSImage? {
-    guard
-      item.kind == .image,
-      let imageData = item.imageData
-    else {
-      return nil
+  private var rowPreview: String {
+    guard !item.preview.isEmpty else {
+      return item.kind.rawValue
     }
 
-    return NSImage(data: imageData)
-  }
-
-  private var thumbnailSideLength: CGFloat {
-    CGFloat(max(24, min(120, imageHeight)))
+    return item.preview
   }
 
   private var accessibilityValue: String {
-    var details = [
-      item.kind.rawValue,
-      item.sourceApp ?? "Unknown source",
-      item.sourceConfidenceDescription,
-      relativeDateFormatter.localizedString(for: item.lastCopiedAt, relativeTo: Date()),
-      copyCountText
-    ]
+    var details: [String] = []
 
     if item.isPinned {
       details.append("Pinned")
     }
 
-    if isSelected {
-      details.append("Selected")
-    }
-
     if let shortcutNumber {
       details.append("Command \(shortcutNumber)")
+    }
+
+    if isSelected {
+      details.append("Selected")
     }
 
     return details.joined(separator: ", ")
@@ -416,106 +433,83 @@ private struct ClipboardRow: View {
   @ViewBuilder
   private var rowBackground: some View {
     if isSelected {
-      RoundedRectangle(cornerRadius: 6)
+      Rectangle()
         .fill(Color.accentColor.opacity(0.14))
-        .padding(.horizontal, 6)
-        .padding(.vertical, 3)
     }
   }
 }
 
-private struct DetailPane: View {
-  let item: ClipboardItem?
-  let preferences: ClackPreferences
-  let actions: ClipboardActions
+private struct HoverDetailCard: View {
+  let item: ClipboardItem
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 10) {
-      if let item {
-        HStack(spacing: 8) {
-          Label(item.sourceApp ?? "Unknown", systemImage: "app.dashed")
-          Spacer()
-          Text(payloadCountText(item))
-        }
-        .font(.caption)
-        .foregroundStyle(.secondary)
-        .accessibilityElement(children: .combine)
+    VStack(alignment: .leading, spacing: 0) {
+      payloadPreview
+        .frame(maxWidth: .infinity, maxHeight: 230, alignment: .topLeading)
 
-        payloadPreview(item)
-        .frame(height: 96)
-        .background(Color(nsColor: .textBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 6))
+      Divider()
+        .padding(.vertical, 11)
 
-        HStack(spacing: 12) {
-          MetadataLabel(title: "First", date: item.firstCopiedAt)
-          MetadataLabel(title: "Last", date: item.lastCopiedAt)
-          Text(item.copyCount == 1 ? "1 copy" : "\(item.copyCount) copies")
-          Text(item.kind.rawValue)
-          Text(item.sourceConfidenceDescription)
-        }
-        .font(.caption)
-        .foregroundStyle(.secondary)
-        .accessibilityElement(children: .combine)
-
-        metadataLine(item)
-          .font(.caption)
-          .foregroundStyle(.secondary)
-
-        HStack {
-          Button {
-            actions.togglePin(item)
-          } label: {
-            Label(item.isPinned ? "Unpin" : "Pin", systemImage: item.isPinned ? "pin.slash" : "pin")
-          }
-          .keyboardShortcut("p", modifiers: [.command])
-
-          Button(role: .destructive) {
-            actions.delete(item)
-          } label: {
-            Label("Delete", systemImage: "delete.left")
-          }
-          .keyboardShortcut(.delete, modifiers: [.command])
-
-          Spacer()
-        }
-      } else {
-        Text("No selection")
-          .foregroundStyle(.secondary)
-          .frame(maxWidth: .infinity, maxHeight: .infinity)
+      VStack(alignment: .leading, spacing: 7) {
+        DetailMetadataRow(title: "Application", value: item.sourceApp ?? "Unknown")
+        DetailMetadataRow(title: "First time copied", value: detailDateFormatter.string(from: item.firstCopiedAt))
+        DetailMetadataRow(title: "Last time copied", value: detailDateFormatter.string(from: item.lastCopiedAt))
+        DetailMetadataRow(title: "Number of copies", value: "\(item.copyCount)")
       }
+
+      Spacer(minLength: 12)
+
+      VStack(alignment: .leading, spacing: 5) {
+        Text("Press ⌘P to \(item.isPinned ? "unpin" : "pin")")
+        Text("Press ⌘⌫ to delete")
+      }
+      .font(.system(size: 12))
+      .foregroundStyle(.secondary)
     }
     .padding(12)
-    .frame(height: 220)
+    .background(Color(nsColor: .windowBackgroundColor))
+    .clipShape(RoundedRectangle(cornerRadius: 10))
+    .overlay(
+      RoundedRectangle(cornerRadius: 10)
+        .stroke(Color(nsColor: .separatorColor).opacity(0.8), lineWidth: 1)
+    )
+    .shadow(color: .black.opacity(0.14), radius: 18, y: 8)
     .accessibilityElement(children: .contain)
-    .accessibilityLabel("Selected clipboard item details")
+    .accessibilityLabel("Clipboard item details")
   }
 
   @ViewBuilder
-  private func payloadPreview(_ item: ClipboardItem) -> some View {
+  private var payloadPreview: some View {
     switch item.kind {
     case .text, .richText:
       ScrollView {
         Text(item.content)
-          .font(.system(.body, design: .monospaced))
+          .font(.system(size: 12, design: .monospaced))
+          .foregroundStyle(.primary)
           .textSelection(.enabled)
           .frame(maxWidth: .infinity, alignment: .leading)
-          .padding(10)
-          .accessibilityLabel("Full clipboard content")
+          .padding(9)
       }
+      .background(Color(nsColor: .textBackgroundColor))
+      .clipShape(RoundedRectangle(cornerRadius: 6))
+      .accessibilityLabel("Full clipboard content")
     case .file:
       ScrollView {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 5) {
           ForEach(item.fileURLs, id: \.self) { path in
-            Label(URL(fileURLWithPath: path).lastPathComponent, systemImage: "doc")
+            Text(URL(fileURLWithPath: path).lastPathComponent)
               .help(path)
           }
         }
-        .font(.system(.body, design: .monospaced))
+        .font(.system(size: 12, design: .monospaced))
+        .foregroundStyle(.primary)
         .textSelection(.enabled)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(10)
-        .accessibilityLabel("Copied files")
+        .padding(9)
       }
+      .background(Color(nsColor: .textBackgroundColor))
+      .clipShape(RoundedRectangle(cornerRadius: 6))
+      .accessibilityLabel("Copied files")
     case .image:
       if
         let imageData = item.imageData,
@@ -526,86 +520,80 @@ private struct DetailPane: View {
           .scaledToFit()
           .padding(8)
           .frame(maxWidth: .infinity, maxHeight: .infinity)
+          .background(Color(nsColor: .textBackgroundColor))
+          .clipShape(RoundedRectangle(cornerRadius: 6))
           .accessibilityLabel("Copied image preview")
       } else {
         Text(item.detailText)
+          .font(.system(size: 12))
+          .foregroundStyle(.secondary)
           .frame(maxWidth: .infinity, maxHeight: .infinity)
+          .background(Color(nsColor: .textBackgroundColor))
+          .clipShape(RoundedRectangle(cornerRadius: 6))
       }
     }
   }
-
-  @ViewBuilder
-  private func metadataLine(_ item: ClipboardItem) -> some View {
-    let metadata = compactMetadata(for: item)
-
-    if !metadata.isEmpty {
-      Text(metadata.joined(separator: "  |  "))
-        .lineLimit(2)
-        .textSelection(.enabled)
-    }
-  }
-
-  private func compactMetadata(for item: ClipboardItem) -> [String] {
-    var metadata: [String] = []
-
-    if let sourceBundleIdentifier = item.sourceBundleIdentifier {
-      metadata.append(sourceBundleIdentifier)
-    }
-
-    if let sourceProcessIdentifier = item.sourceProcessIdentifier {
-      metadata.append("PID \(sourceProcessIdentifier)")
-    }
-
-    if let sourceCapturedAt = item.sourceCapturedAt {
-      metadata.append("Source observed \(shortDateFormatter.string(from: sourceCapturedAt))")
-    }
-
-    if let richTextTypeDescription = item.richTextTypeDescription {
-      metadata.append(richTextTypeDescription)
-    }
-
-    if let imageSizeDescription = item.imageSizeDescription {
-      metadata.append(imageSizeDescription)
-    }
-
-    if !item.pasteboardTypes.isEmpty {
-      metadata.append(item.pasteboardTypes.prefix(3).joined(separator: ", "))
-    }
-
-    return metadata
-  }
-
-  private func payloadCountText(_ item: ClipboardItem) -> String {
-    switch item.kind {
-    case .text:
-      "\(item.characterCount) chars"
-    case .richText:
-      byteCountFormatter.string(fromByteCount: Int64(item.byteCount))
-    case .file:
-      item.fileURLs.count == 1 ? "1 file" : "\(item.fileURLs.count) files"
-    case .image:
-      byteCountFormatter.string(fromByteCount: Int64(item.byteCount))
-    }
-  }
 }
 
-private extension ClipboardItemKind {
-  var systemImageName: String {
-    switch self {
-    case .text: "doc.text"
-    case .richText: "textformat"
-    case .file: "doc"
-    case .image: "photo"
-    }
-  }
-}
-
-private struct MetadataLabel: View {
+private struct DetailMetadataRow: View {
   let title: String
-  let date: Date
+  let value: String
 
   var body: some View {
-    Text("\(title) \(shortDateFormatter.string(from: date))")
+    HStack(alignment: .firstTextBaseline, spacing: 8) {
+      Text(title)
+        .foregroundStyle(.secondary)
+        .frame(width: 112, alignment: .leading)
+
+      Text(value)
+        .foregroundStyle(.primary)
+        .lineLimit(2)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+    .font(.system(size: 12))
+  }
+}
+
+private struct FooterMenuRow: View {
+  let title: String
+  let shortcut: String?
+  var isDisabled = false
+  let action: () -> Void
+
+  @State private var isHovering = false
+
+  var body: some View {
+    Button(action: action) {
+      HStack(spacing: 10) {
+        Text(title)
+          .font(.system(size: 13))
+          .foregroundStyle(isDisabled ? .secondary : .primary)
+
+        Spacer()
+
+        if let shortcut {
+          Text(shortcut)
+            .font(.system(size: 12))
+            .foregroundStyle(.secondary)
+        }
+      }
+      .contentShape(Rectangle())
+      .padding(.horizontal, 10)
+      .frame(height: 27)
+      .background(rowBackground)
+    }
+    .buttonStyle(.plain)
+    .disabled(isDisabled)
+    .onHover { isHovering = $0 }
+    .accessibilityLabel(title)
+  }
+
+  @ViewBuilder
+  private var rowBackground: some View {
+    if isHovering && !isDisabled {
+      Rectangle()
+        .fill(Color.accentColor.opacity(0.12))
+    }
   }
 }
 
@@ -617,11 +605,15 @@ private enum SelectionDirection {
 private struct KeyboardNavigationMonitor: NSViewRepresentable {
   let moveSelection: (SelectionDirection) -> Void
   let restoreSelection: () -> Void
+  let togglePinSelection: () -> Void
+  let deleteSelection: () -> Void
 
   func makeCoordinator() -> Coordinator {
     Coordinator(
       moveSelection: moveSelection,
-      restoreSelection: restoreSelection
+      restoreSelection: restoreSelection,
+      togglePinSelection: togglePinSelection,
+      deleteSelection: deleteSelection
     )
   }
 
@@ -635,6 +627,8 @@ private struct KeyboardNavigationMonitor: NSViewRepresentable {
   func updateNSView(_ nsView: NSView, context: Context) {
     context.coordinator.moveSelection = moveSelection
     context.coordinator.restoreSelection = restoreSelection
+    context.coordinator.togglePinSelection = togglePinSelection
+    context.coordinator.deleteSelection = deleteSelection
   }
 
   static func dismantleNSView(_ nsView: NSView, coordinator: Coordinator) {
@@ -645,14 +639,20 @@ private struct KeyboardNavigationMonitor: NSViewRepresentable {
     weak var view: NSView?
     var moveSelection: (SelectionDirection) -> Void
     var restoreSelection: () -> Void
+    var togglePinSelection: () -> Void
+    var deleteSelection: () -> Void
     private var monitor: Any?
 
     init(
       moveSelection: @escaping (SelectionDirection) -> Void,
-      restoreSelection: @escaping () -> Void
+      restoreSelection: @escaping () -> Void,
+      togglePinSelection: @escaping () -> Void,
+      deleteSelection: @escaping () -> Void
     ) {
       self.moveSelection = moveSelection
       self.restoreSelection = restoreSelection
+      self.togglePinSelection = togglePinSelection
+      self.deleteSelection = deleteSelection
     }
 
     func start() {
@@ -679,8 +679,19 @@ private struct KeyboardNavigationMonitor: NSViewRepresentable {
         return event
       }
 
-      let blockedModifiers: NSEvent.ModifierFlags = [.command, .option, .control]
-      guard event.modifierFlags.intersection(blockedModifiers).isEmpty else {
+      let modifiers = event.modifierFlags.intersection([.command, .shift, .option, .control])
+
+      if modifiers == [.command], event.keyCode == 35 {
+        togglePinSelection()
+        return nil
+      }
+
+      if modifiers == [.command], event.keyCode == 51 || event.keyCode == 117 {
+        deleteSelection()
+        return nil
+      }
+
+      guard modifiers.isEmpty else {
         return event
       }
 
@@ -701,21 +712,9 @@ private struct KeyboardNavigationMonitor: NSViewRepresentable {
   }
 }
 
-private let relativeDateFormatter: RelativeDateTimeFormatter = {
-  let formatter = RelativeDateTimeFormatter()
-  formatter.unitsStyle = .abbreviated
-  return formatter
-}()
-
-private let shortDateFormatter: DateFormatter = {
+private let detailDateFormatter: DateFormatter = {
   let formatter = DateFormatter()
-  formatter.dateStyle = .short
+  formatter.dateStyle = .medium
   formatter.timeStyle = .short
-  return formatter
-}()
-
-private let byteCountFormatter: ByteCountFormatter = {
-  let formatter = ByteCountFormatter()
-  formatter.countStyle = .file
   return formatter
 }()
