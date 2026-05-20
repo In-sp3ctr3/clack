@@ -16,7 +16,11 @@ Contributors can help through issues, discussions, pull requests, testing, docum
 
 ## Releases
 
-Releases are cut by maintainers from the protected `main` branch. Release notes should summarize user-facing changes, fixes, and known limitations.
+Releases are cut by maintainers from the protected `main` branch. Release notes should summarize user-facing changes, fixes, known limitations, and whether the build is signed and notarized.
+
+## Project Standards
+
+Maintainers should keep community files current, require passing CI before merge, and keep privacy-sensitive changes visible in pull request notes. Larger UI, packaging, or storage changes should include screenshots, local verification notes, or release-process updates as appropriate.
 
 ## Changes to Governance
 

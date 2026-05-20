@@ -2,6 +2,10 @@
 
 Clack should be a small, useful project that is pleasant to work around.
 
+## Scope
+
+This code of conduct applies to project spaces including issues, pull requests, discussions, release comments, and community conversations tied to Clack.
+
 ## Expected Behavior
 
 - Be respectful and constructive.
@@ -20,6 +24,6 @@ Clack should be a small, useful project that is pleasant to work around.
 
 ## Enforcement
 
-Maintainers may edit, hide, or remove comments; close issues; block users; or take other reasonable action to protect the project. If you need to report a conduct issue, contact the maintainer privately.
+Maintainers may edit, hide, or remove comments; close issues; block users; or take other reasonable action to protect the project. If you need to report a conduct issue, contact the maintainer privately through the GitHub profile.
 
 This code of conduct may evolve as the community grows.
