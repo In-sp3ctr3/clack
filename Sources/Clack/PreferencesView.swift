@@ -3,7 +3,7 @@ import AppKit
 import SwiftUI
 
 struct PreferencesView: View {
-  static let preferredWindowSize = NSSize(width: 640, height: 430)
+  static let preferredWindowSize = NSSize(width: 660, height: 520)
 
   @ObservedObject var preferences: ClackPreferences
   @ObservedObject var store: ClipboardHistoryStore
@@ -12,6 +12,7 @@ struct PreferencesView: View {
   @State private var selectedPane: PreferencesPane = .general
   @State private var selectedIgnorePane: IgnorePane = .applications
   @State private var shortcutBeingRecorded: ShortcutKind?
+  @Namespace private var selectedPaneBackground
 
   var body: some View {
     VStack(spacing: 0) {
@@ -19,32 +20,35 @@ struct PreferencesView: View {
 
       Divider()
 
-      ScrollView {
-        selectedPaneContent
-          .padding(.horizontal, 16)
-          .padding(.vertical, 10)
-          .frame(maxWidth: .infinity, alignment: .topLeading)
-      }
-      .scrollIndicators(.automatic)
-      .frame(maxWidth: .infinity, maxHeight: .infinity)
+      selectedPaneContent
+        .id(selectedPane)
+        .padding(.horizontal, 18)
+        .padding(.vertical, 18)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .transition(.opacity.combined(with: .scale(scale: 0.995)))
     }
+    .animation(.easeInOut(duration: 0.16), value: selectedPane)
     .frame(width: Self.preferredWindowSize.width, height: Self.preferredWindowSize.height)
     .background(Color(nsColor: .windowBackgroundColor))
+    .background(WindowTitleUpdater(title: selectedPane.title).frame(width: 0, height: 0))
   }
 
   private var header: some View {
-    HStack(spacing: 8) {
+    HStack(spacing: 6) {
       ForEach(PreferencesPane.allCases) { pane in
         PreferencePaneButton(
           pane: pane,
-          isSelected: selectedPane == pane
+          isSelected: selectedPane == pane,
+          namespace: selectedPaneBackground
         ) {
-          selectedPane = pane
+          withAnimation(.easeInOut(duration: 0.16)) {
+            selectedPane = pane
+          }
         }
       }
     }
-    .padding(.top, 6)
-    .padding(.bottom, 6)
+    .padding(.horizontal, 22)
+    .frame(height: 112)
   }
 
   @ViewBuilder
@@ -278,113 +282,55 @@ struct PreferencesView: View {
   }
 
   private var pinsPane: some View {
-    VStack(alignment: .leading, spacing: 10) {
-      HStack {
-        Text("Key")
-          .frame(width: 90, alignment: .leading)
-        Divider()
-        Text("Title")
-          .frame(width: 320, alignment: .leading)
-        Divider()
-        Text("Content")
-          .frame(maxWidth: .infinity, alignment: .leading)
-      }
-      .font(.headline)
-      .padding(.horizontal, 10)
+    VStack(alignment: .leading, spacing: 0) {
+      PinnedItemsTable(items: pinnedItems)
+        .frame(maxHeight: 316)
 
-      Divider()
-
-      ScrollView {
-        VStack(spacing: 8) {
-          if pinnedItems.isEmpty {
-            ForEach(0..<5, id: \.self) { _ in
-              RoundedRectangle(cornerRadius: 9)
-                .fill(Color(nsColor: .controlBackgroundColor))
-                .frame(height: 24)
-            }
-          } else {
-            ForEach(Array(pinnedItems.enumerated()), id: \.element.id) { index, item in
-              PinnedItemRow(index: index, item: item)
-            }
-          }
-        }
-      }
-      .frame(maxHeight: 150)
-      .scrollIndicators(.automatic)
+      Spacer(minLength: 16)
 
       Text("Pinned items stay in history when clearing unpinned items.")
         .font(.callout)
         .foregroundStyle(.secondary)
-        .lineLimit(2)
+        .padding(.top, 12)
     }
-    .frame(maxWidth: .infinity, alignment: .topLeading)
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
   }
 
   private var ignorePane: some View {
-    VStack(alignment: .leading, spacing: 10) {
-      Picker("", selection: $selectedIgnorePane) {
-        ForEach(IgnorePane.allCases) { pane in
-          Text(pane.title).tag(pane)
-        }
-      }
-      .pickerStyle(.segmented)
-      .labelsHidden()
-      .frame(width: 520)
-      .frame(maxWidth: .infinity)
-      .accessibilityLabel("Ignore category")
-
-      Group {
-        switch selectedIgnorePane {
-        case .applications:
-          ListEditor(
-            values: preferences.ignoredApplications,
-            placeholder: "Application name",
-            add: preferences.addIgnoredApplication,
-            remove: preferences.removeIgnoredApplication,
-            reset: preferences.resetIgnoredApplications
-          )
-
+    IgnorePanePanel(
+      selectedPane: $selectedIgnorePane,
+      applications: IgnoreListConfiguration(
+        values: preferences.ignoredApplications,
+        placeholder: "Application name",
+        add: preferences.addIgnoredApplication,
+        remove: preferences.removeIgnoredApplication,
+        reset: preferences.resetIgnoredApplications,
+        footer: "Application matching uses the frontmost app name reported by macOS.",
+        toggle: AnyView(
           Toggle("Ignore all applications except listed", isOn: $preferences.ignoreAllApplicationsExceptListed)
             .toggleStyle(.checkbox)
-
-          Text("Application matching uses the frontmost app name reported by macOS.")
-            .font(.callout)
-            .foregroundStyle(.secondary)
-            .lineLimit(2)
-
-        case .pasteboardTypes:
-          ListEditor(
-            values: preferences.ignoredPasteboardTypes,
-            placeholder: "Pasteboard type",
-            add: preferences.addIgnoredPasteboardType,
-            remove: preferences.removeIgnoredPasteboardType,
-            reset: preferences.resetIgnoredPasteboardTypes
-          )
-
-          Text("Defaults include transient and password-manager pasteboard types.")
-            .font(.callout)
-            .foregroundStyle(.secondary)
-            .lineLimit(2)
-
-        case .regularExpressions:
-          ListEditor(
-            values: preferences.ignoredRegularExpressions,
-            placeholder: "Regular expression",
-            add: preferences.addIgnoredRegularExpression,
-            remove: preferences.removeIgnoredRegularExpression,
-            reset: preferences.resetIgnoredRegularExpressions
-          )
-
-          Text("Expressions are matched against copied text before it is stored.")
-            .font(.callout)
-            .foregroundStyle(.secondary)
-            .lineLimit(2)
-        }
-      }
-      .padding(10)
-      .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
-    }
-    .frame(maxWidth: .infinity, alignment: .topLeading)
+        )
+      ),
+      pasteboardTypes: IgnoreListConfiguration(
+        values: preferences.ignoredPasteboardTypes,
+        placeholder: "Pasteboard type",
+        add: preferences.addIgnoredPasteboardType,
+        remove: preferences.removeIgnoredPasteboardType,
+        reset: preferences.resetIgnoredPasteboardTypes,
+        footer: "Defaults include transient and password-manager pasteboard types.",
+        toggle: AnyView(EmptyView())
+      ),
+      regularExpressions: IgnoreListConfiguration(
+        values: preferences.ignoredRegularExpressions,
+        placeholder: "Regular expression",
+        add: preferences.addIgnoredRegularExpression,
+        remove: preferences.removeIgnoredRegularExpression,
+        reset: preferences.resetIgnoredRegularExpressions,
+        footer: "Expressions are matched against copied text before it is stored.",
+        toggle: AnyView(EmptyView())
+      )
+    )
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
   }
 
   private var advancedPane: some View {
@@ -556,28 +502,52 @@ private enum IgnorePane: String, CaseIterable, Identifiable {
   }
 }
 
+private struct WindowTitleUpdater: NSViewRepresentable {
+  let title: String
+
+  func makeNSView(context: Context) -> NSView {
+    NSView(frame: .zero)
+  }
+
+  func updateNSView(_ nsView: NSView, context: Context) {
+    DispatchQueue.main.async {
+      nsView.window?.title = title
+    }
+  }
+}
+
 private struct PreferencePaneButton: View {
   let pane: PreferencesPane
   let isSelected: Bool
+  let namespace: Namespace.ID
   let action: () -> Void
 
   var body: some View {
     Button(action: action) {
-      VStack(spacing: 4) {
+      VStack(spacing: 6) {
         Image(systemName: pane.symbol)
-          .font(.system(size: 20, weight: .regular))
+          .font(.system(size: 30, weight: .regular))
         Text(pane.title)
-          .font(.system(size: 12))
+          .font(.system(size: 13))
+          .lineLimit(1)
       }
       .foregroundStyle(isSelected ? .blue : .secondary)
-      .frame(width: 82, height: 50)
+      .frame(width: 92, height: 82)
+      .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
       .background(
-        RoundedRectangle(cornerRadius: 10)
-          .fill(isSelected ? Color(nsColor: .controlBackgroundColor) : .clear)
-          .shadow(color: isSelected ? .black.opacity(0.08) : .clear, radius: 18, y: 8)
+        Group {
+          if isSelected {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+              .fill(Color(nsColor: .controlBackgroundColor))
+              .matchedGeometryEffect(id: "selectedPaneBackground", in: namespace)
+              .shadow(color: .black.opacity(0.08), radius: 20, y: 8)
+          }
+        }
       )
     }
     .buttonStyle(.plain)
+    .frame(width: 92, height: 82)
+    .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     .accessibilityLabel(pane.title)
     .accessibilityValue(isSelected ? "Selected" : "Not selected")
     .accessibilityHint("Show \(pane.title) preferences.")
@@ -834,27 +804,169 @@ private extension NSEvent.ModifierFlags {
   }
 }
 
-private struct PinnedItemRow: View {
+private struct PinnedItemsTable: View {
+  private static let rowCount = 7
+
+  let items: [ClipboardItem]
+
+  var body: some View {
+    VStack(spacing: 0) {
+      HStack(spacing: 0) {
+        Text("Key")
+          .frame(width: 96, alignment: .leading)
+        Divider()
+          .frame(height: 22)
+        Text("Title")
+          .frame(width: 270, alignment: .leading)
+          .padding(.leading, 12)
+        Divider()
+          .frame(height: 22)
+        Text("Content")
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .padding(.leading, 12)
+      }
+      .font(.headline)
+      .padding(.horizontal, 14)
+      .frame(height: 40)
+
+      Divider()
+
+      ForEach(0..<Self.rowCount, id: \.self) { index in
+        if items.indices.contains(index) {
+          PinnedTableRow(index: index, item: items[index])
+        } else {
+          EmptyPinnedTableRow(index: index)
+        }
+
+        if index < Self.rowCount - 1 {
+          Divider()
+        }
+      }
+    }
+    .background(Color(nsColor: .textBackgroundColor))
+    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+  }
+}
+
+private struct PinnedTableRow: View {
   let index: Int
   let item: ClipboardItem
 
   var body: some View {
-    HStack(spacing: 12) {
+    HStack(spacing: 0) {
       Text("⌘\(min(index + 1, 9))")
-        .frame(width: 76, alignment: .leading)
+        .frame(width: 96, alignment: .leading)
       Text(item.preview)
-        .frame(width: 320, alignment: .leading)
+        .frame(width: 270, alignment: .leading)
         .lineLimit(1)
       Text(item.detailText)
         .frame(maxWidth: .infinity, alignment: .leading)
         .lineLimit(1)
     }
-    .padding(.horizontal, 16)
-    .frame(height: 28)
-    .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 10))
+    .font(.body)
+    .padding(.horizontal, 14)
+    .frame(height: 34)
+    .background(rowColor)
     .accessibilityElement(children: .ignore)
     .accessibilityLabel(item.preview)
     .accessibilityValue("Pinned item, Command \(min(index + 1, 9))")
+  }
+
+  private var rowColor: Color {
+    index.isMultiple(of: 2)
+      ? Color(nsColor: .textBackgroundColor)
+      : Color(nsColor: .controlBackgroundColor)
+  }
+}
+
+private struct EmptyPinnedTableRow: View {
+  let index: Int
+
+  var body: some View {
+    Rectangle()
+      .fill(rowColor)
+      .frame(height: 34)
+      .accessibilityHidden(true)
+  }
+
+  private var rowColor: Color {
+    index.isMultiple(of: 2)
+      ? Color(nsColor: .textBackgroundColor)
+      : Color(nsColor: .controlBackgroundColor)
+  }
+}
+
+private struct IgnoreListConfiguration {
+  let values: [String]
+  let placeholder: String
+  let add: (String) -> Void
+  let remove: (String) -> Void
+  let reset: () -> Void
+  let footer: String
+  let toggle: AnyView
+}
+
+private struct IgnorePanePanel: View {
+  @Binding var selectedPane: IgnorePane
+  let applications: IgnoreListConfiguration
+  let pasteboardTypes: IgnoreListConfiguration
+  let regularExpressions: IgnoreListConfiguration
+
+  var body: some View {
+    ZStack(alignment: .top) {
+      RoundedRectangle(cornerRadius: 8, style: .continuous)
+        .fill(Color(nsColor: .controlBackgroundColor))
+        .overlay(
+          RoundedRectangle(cornerRadius: 8, style: .continuous)
+            .stroke(Color(nsColor: .separatorColor).opacity(0.55), lineWidth: 1)
+        )
+        .padding(.top, 22)
+
+      VStack(alignment: .leading, spacing: 10) {
+        Spacer()
+          .frame(height: 36)
+
+        ListEditor(
+          values: configuration.values,
+          placeholder: configuration.placeholder,
+          add: configuration.add,
+          remove: configuration.remove,
+          reset: configuration.reset
+        )
+
+        configuration.toggle
+
+        Text(configuration.footer)
+          .font(.callout)
+          .foregroundStyle(.secondary)
+          .fixedSize(horizontal: false, vertical: true)
+      }
+      .padding(.horizontal, 18)
+      .padding(.bottom, 16)
+      .frame(maxWidth: .infinity, alignment: .topLeading)
+
+      Picker("", selection: $selectedPane) {
+        ForEach(IgnorePane.allCases) { pane in
+          Text(pane.title).tag(pane)
+        }
+      }
+      .pickerStyle(.segmented)
+      .labelsHidden()
+      .frame(width: 520)
+      .accessibilityLabel("Ignore category")
+    }
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+  }
+
+  private var configuration: IgnoreListConfiguration {
+    switch selectedPane {
+    case .applications:
+      applications
+    case .pasteboardTypes:
+      pasteboardTypes
+    case .regularExpressions:
+      regularExpressions
+    }
   }
 }
 
@@ -868,17 +980,16 @@ private struct ListEditor: View {
   @State private var draft = ""
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 8) {
+    VStack(alignment: .leading, spacing: 10) {
       ScrollView {
-        VStack(spacing: 6) {
+        VStack(spacing: 0) {
           if values.isEmpty {
-            RoundedRectangle(cornerRadius: 8)
-              .fill(Color(nsColor: .textBackgroundColor))
-              .frame(height: 132)
+            Color.clear
+              .frame(height: 208)
               .accessibilityHidden(true)
           } else {
-            ForEach(values, id: \.self) { value in
-              HStack {
+            ForEach(Array(values.enumerated()), id: \.element) { index, value in
+              HStack(spacing: 8) {
                 Text(value)
                   .lineLimit(1)
                 Spacer()
@@ -891,19 +1002,17 @@ private struct ListEditor: View {
                 .accessibilityLabel("Remove \(value)")
               }
               .padding(.horizontal, 10)
-              .frame(height: 26)
-              .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
+              .frame(height: 28)
+              .background(index.isMultiple(of: 2) ? Color(nsColor: .textBackgroundColor) : Color(nsColor: .controlBackgroundColor))
             }
           }
         }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
       }
-      .frame(height: 158)
+      .frame(height: 208)
+      .background(Color(nsColor: .textBackgroundColor))
 
       HStack(spacing: 8) {
-        TextField(placeholder, text: $draft)
-          .textFieldStyle(.roundedBorder)
-          .accessibilityLabel("New \(placeholder.lowercased())")
-
         Button {
           add(draft)
           draft = ""
@@ -927,6 +1036,10 @@ private struct ListEditor: View {
           reset()
         }
         .accessibilityLabel("Reset \(placeholder.lowercased()) list")
+
+        TextField(placeholder, text: $draft)
+          .textFieldStyle(.roundedBorder)
+          .accessibilityLabel("New \(placeholder.lowercased())")
       }
     }
   }

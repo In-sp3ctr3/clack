@@ -233,8 +233,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       backing: .buffered,
       defer: false
     )
-    window.title = "Clack Preferences"
-    window.minSize = PreferencesView.preferredWindowSize
+    window.title = "General"
+    window.contentMinSize = PreferencesView.preferredWindowSize
     window.center()
     window.contentViewController = NSHostingController(rootView: view)
 
