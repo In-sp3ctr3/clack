@@ -19,33 +19,32 @@ struct PreferencesView: View {
 
       Divider()
 
-      selectedPaneContent
-        .padding(16)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+      ScrollView {
+        selectedPaneContent
+          .padding(.horizontal, 16)
+          .padding(.vertical, 10)
+          .frame(maxWidth: .infinity, alignment: .topLeading)
+      }
+      .scrollIndicators(.automatic)
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     .frame(width: Self.preferredWindowSize.width, height: Self.preferredWindowSize.height)
     .background(Color(nsColor: .windowBackgroundColor))
   }
 
   private var header: some View {
-    VStack(spacing: 8) {
-      Text(selectedPane.title)
-        .font(.system(size: 16, weight: .semibold))
-        .foregroundStyle(.primary)
-
-      HStack(spacing: 8) {
-        ForEach(PreferencesPane.allCases) { pane in
-          PreferencePaneButton(
-            pane: pane,
-            isSelected: selectedPane == pane
-          ) {
-            selectedPane = pane
-          }
+    HStack(spacing: 8) {
+      ForEach(PreferencesPane.allCases) { pane in
+        PreferencePaneButton(
+          pane: pane,
+          isSelected: selectedPane == pane
+        ) {
+          selectedPane = pane
         }
       }
     }
-    .padding(.top, 8)
-    .padding(.bottom, 8)
+    .padding(.top, 6)
+    .padding(.bottom, 6)
   }
 
   @ViewBuilder
@@ -67,8 +66,8 @@ struct PreferencesView: View {
   }
 
   private var generalPane: some View {
-    VStack(alignment: .leading, spacing: 12) {
-      VStack(alignment: .leading, spacing: 7) {
+    VStack(alignment: .leading, spacing: 8) {
+      VStack(alignment: .leading, spacing: 4) {
         Toggle("Launch at login", isOn: launchAtLoginBinding)
         Toggle("Check for updates automatically", isOn: $preferences.checkForUpdatesAutomatically)
 
@@ -139,22 +138,18 @@ struct PreferencesView: View {
       HStack(alignment: .top, spacing: 12) {
         PreferenceLabel("Behavior")
 
-        VStack(alignment: .leading, spacing: 7) {
+        VStack(alignment: .leading, spacing: 5) {
           Toggle("Paste automatically", isOn: $preferences.pasteAutomatically)
           Toggle("Paste without formatting", isOn: $preferences.pasteWithoutFormatting)
 
-          VStack(alignment: .leading, spacing: 3) {
+          VStack(alignment: .leading, spacing: 2) {
             ForEach(behaviorHelpLines, id: \.self) { line in
               Text(line)
             }
           }
-          .font(.system(size: 11))
+          .font(.system(size: 10))
           .foregroundStyle(.secondary)
           .fixedSize(horizontal: false, vertical: true)
-
-          Text("Image and file items restore as native pasteboard payloads when possible.")
-            .font(.callout)
-            .foregroundStyle(.secondary)
         }
         .toggleStyle(.checkbox)
       }
@@ -562,12 +557,12 @@ private struct PreferencePaneButton: View {
     Button(action: action) {
       VStack(spacing: 4) {
         Image(systemName: pane.symbol)
-          .font(.system(size: 22, weight: .regular))
+          .font(.system(size: 20, weight: .regular))
         Text(pane.title)
           .font(.system(size: 12))
       }
       .foregroundStyle(isSelected ? .blue : .secondary)
-      .frame(width: 82, height: 54)
+      .frame(width: 82, height: 50)
       .background(
         RoundedRectangle(cornerRadius: 10)
           .fill(isSelected ? Color(nsColor: .controlBackgroundColor) : .clear)
@@ -585,7 +580,7 @@ private struct PreferencePaneButton: View {
 private struct PreferenceDivider: View {
   var body: some View {
     Divider()
-      .padding(.vertical, 4)
+      .padding(.vertical, 1)
   }
 }
 
@@ -699,6 +694,7 @@ private struct ShortcutRow: View {
       .buttonStyle(.borderless)
       .accessibilityLabel("Reset \(title) shortcut")
     }
+    .frame(height: 28)
     .accessibilityElement(children: .ignore)
     .accessibilityLabel("\(title) shortcut")
     .accessibilityValue(shortcut.display)
