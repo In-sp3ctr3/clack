@@ -125,7 +125,7 @@ public final class ClackPreferences: ObservableObject {
     self.popupLocation = Self.enumeration(defaults, key: Keys.popupLocation, defaultValue: .cursor)
     self.pinLocation = Self.enumeration(defaults, key: Keys.pinLocation, defaultValue: .top)
     self.imageHeight = Self.integer(defaults, key: Keys.imageHeight, defaultValue: 40)
-    self.previewDelayMilliseconds = Self.integer(defaults, key: Keys.previewDelayMilliseconds, defaultValue: 1_500)
+    self.previewDelayMilliseconds = Self.integer(defaults, key: Keys.previewDelayMilliseconds, defaultValue: 250)
     self.highlightStyle = Self.enumeration(defaults, key: Keys.highlightStyle, defaultValue: .bold)
     self.showSpecialSymbols = Self.bool(defaults, key: Keys.showSpecialSymbols, defaultValue: true)
     self.showMenuIcon = Self.bool(defaults, key: Keys.showMenuIcon, defaultValue: true)

@@ -19,6 +19,7 @@ struct ClackPopoverView: View {
   @State private var selectedItemID: ClipboardItem.ID?
   @State private var previewIsOpen = false
   @State private var previewOpenTask: Task<Void, Never>?
+  @State private var previewCloseTask: Task<Void, Never>?
   @State private var searchFocusTask: Task<Void, Never>?
   @State private var rowRects: [ClipboardItem.ID: NSRect] = [:]
 
@@ -72,8 +73,9 @@ struct ClackPopoverView: View {
     }
     .onDisappear {
       previewOpenTask?.cancel()
+      previewCloseTask?.cancel()
       searchFocusTask?.cancel()
-      hidePreview()
+      closePreview()
     }
     .onChange(of: visibleItemIDs) { _ in
       syncSelectionWithVisibleItems()
@@ -192,10 +194,6 @@ struct ClackPopoverView: View {
       },
       onFrameChange: { rect in
         rowRects[item.id] = rect
-
-        if previewIsOpen, selectedItemID == item.id {
-          showPreview(item, rect)
-        }
       }
     )
 
@@ -325,6 +323,7 @@ struct ClackPopoverView: View {
 
   private func handleHover(item: ClipboardItem, isHovering: Bool) {
     if isHovering {
+      previewCloseTask?.cancel()
       selectedItemID = item.id
 
       guard !previewIsOpen else {
@@ -334,7 +333,10 @@ struct ClackPopoverView: View {
       }
 
       schedulePreviewOpen(for: item.id)
-    } else if !previewIsOpen && selectedItemID == item.id {
+    } else if selectedItemID == item.id {
+      previewOpenTask?.cancel()
+      schedulePreviewClose()
+    } else if !previewIsOpen {
       previewOpenTask?.cancel()
     }
   }
@@ -342,7 +344,7 @@ struct ClackPopoverView: View {
   private func schedulePreviewOpen(for itemID: ClipboardItem.ID) {
     previewOpenTask?.cancel()
 
-    let delay = UInt64(max(preferences.previewDelayMilliseconds, 0)) * 1_000_000
+    let delay = UInt64(min(max(preferences.previewDelayMilliseconds, 0), 250)) * 1_000_000
     previewOpenTask = Task { @MainActor in
       if delay > 0 {
         try? await Task.sleep(nanoseconds: delay)
@@ -362,6 +364,24 @@ struct ClackPopoverView: View {
         _ = showPreviewIfPossible(for: itemID)
       }
     }
+  }
+
+  private func schedulePreviewClose() {
+    previewCloseTask?.cancel()
+    previewCloseTask = Task { @MainActor in
+      try? await Task.sleep(nanoseconds: 120_000_000)
+
+      guard !Task.isCancelled else {
+        return
+      }
+
+      closePreview()
+    }
+  }
+
+  private func closePreview() {
+    previewIsOpen = false
+    hidePreview()
   }
 
   @discardableResult
@@ -395,8 +415,7 @@ struct ClackPopoverView: View {
   private func syncSelectionWithVisibleItems() {
     guard !visibleItems.isEmpty else {
       selectedItemID = nil
-      previewIsOpen = false
-      hidePreview()
+      closePreview()
       return
     }
 
@@ -627,9 +646,19 @@ final class ClackPreviewPopoverController {
   private static let previewSize = NSSize(width: 330, height: 300)
 
   private var popover: NSPopover?
+  private var currentItemID: ClipboardItem.ID?
+  private var currentAnchorRect = NSRect.zero
 
   func show(item: ClipboardItem, relativeTo rowRect: NSRect, of anchorView: NSView) {
     guard !rowRect.isEmpty else {
+      return
+    }
+
+    if
+      currentItemID == item.id,
+      popover?.isShown == true,
+      rowRect.nearlyEquals(currentAnchorRect)
+    {
       return
     }
 
@@ -647,6 +676,8 @@ final class ClackPreviewPopoverController {
     let edge = preferredEdge(for: rowRect, in: anchorView)
     popover.show(relativeTo: rowRect, of: anchorView, preferredEdge: edge)
     self.popover = popover
+    currentItemID = item.id
+    currentAnchorRect = rowRect
 
     applyGap(from: anchorView, edge: edge, to: popover)
   }
@@ -654,6 +685,8 @@ final class ClackPreviewPopoverController {
   func close() {
     popover?.close()
     popover = nil
+    currentItemID = nil
+    currentAnchorRect = .zero
   }
 
   private func preferredEdge(for rowRect: NSRect, in anchorView: NSView) -> NSRectEdge {
@@ -701,6 +734,15 @@ final class ClackPreviewPopoverController {
         NSPoint(x: popoverWindow.frame.minX + Self.gap, y: popoverWindow.frame.minY)
       )
     }
+  }
+}
+
+private extension NSRect {
+  func nearlyEquals(_ other: NSRect) -> Bool {
+    abs(origin.x - other.origin.x) < 0.5
+      && abs(origin.y - other.origin.y) < 0.5
+      && abs(size.width - other.size.width) < 0.5
+      && abs(size.height - other.size.height) < 0.5
   }
 }
 
