@@ -443,7 +443,7 @@ private struct CompactClipboardRow: View {
   var body: some View {
     Button(action: restore) {
       HStack(spacing: 10) {
-        if item.kind == .image {
+        if item.imageData != nil {
           ImageRowThumbnail(item: item)
         }
 
@@ -585,28 +585,38 @@ private struct HoverDetailCard: View {
       .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
       .accessibilityLabel("Full clipboard content")
     case .file:
-      PreviewTextScrollView(text: filePreviewText)
-      .background(Color(nsColor: .textBackgroundColor).opacity(0.58))
-      .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
-      .accessibilityLabel("Copied files")
-    case .image:
-      if
-        let imageData = item.imageData,
-        let image = NSImage(data: imageData)
-      {
-        Image(nsImage: image)
-          .resizable()
-          .scaledToFit()
-          .padding(8)
-          .frame(maxWidth: .infinity, maxHeight: .infinity)
-          .background(Color(nsColor: .textBackgroundColor).opacity(0.58))
-          .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
-          .accessibilityLabel("Copied image preview")
+      if item.imageData != nil {
+        imagePreview
+          .accessibilityLabel("Copied image file preview")
       } else {
-        PreviewTextScrollView(text: item.detailText)
-          .background(Color(nsColor: .textBackgroundColor).opacity(0.58))
-          .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+        PreviewTextScrollView(text: filePreviewText)
+        .background(Color(nsColor: .textBackgroundColor).opacity(0.58))
+        .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+        .accessibilityLabel("Copied files")
       }
+    case .image:
+      imagePreview
+        .accessibilityLabel("Copied image preview")
+    }
+  }
+
+  @ViewBuilder
+  private var imagePreview: some View {
+    if
+      let imageData = item.imageData,
+      let image = NSImage(data: imageData)
+    {
+      Image(nsImage: image)
+        .resizable()
+        .scaledToFit()
+        .padding(8)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(nsColor: .textBackgroundColor).opacity(0.58))
+        .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+    } else {
+      PreviewTextScrollView(text: item.detailText)
+        .background(Color(nsColor: .textBackgroundColor).opacity(0.58))
+        .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
     }
   }
 

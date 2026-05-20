@@ -25,6 +25,7 @@ struct ClackCoreChecks {
       Check(name: "formatted text stores rich representations", run: testFormattedTextStoresRichRepresentations),
       Check(name: "source confidence persists and updates", run: testSourceConfidencePersistsAndUpdates),
       Check(name: "file copies store URLs and deduplicate", run: testFileCopiesStoreURLsAndDeduplicate),
+      Check(name: "image file copies keep preview image data", run: testImageFileCopiesKeepPreviewImageData),
       Check(name: "image copies store data and metadata", run: testImageCopiesStoreDataAndMetadata),
       Check(name: "persistence loads and saves items", run: testPersistenceLoadsAndSavesItems),
       Check(name: "legacy text history decodes with defaults", run: testLegacyTextHistoryDecodesWithDefaults),
@@ -248,6 +249,47 @@ struct ClackCoreChecks {
 
     store.searchText = "Invoice.pdf"
     try expect(store.filteredItems.count == 1, "expected file name search match")
+  }
+
+  @MainActor
+  private static func testImageFileCopiesKeepPreviewImageData() throws {
+    let store = ClipboardHistoryStore(maxStoredItems: 10, loadSavedItems: false)
+    let firstImageData = Data([0x89, 0x50, 0x4E, 0x47])
+    let secondImageData = Data([0x89, 0x50, 0x4E, 0x47, 0x01])
+    let fileURL = "/Users/example/Desktop/Screenshot.png"
+
+    store.recordItem(
+      kind: .file,
+      content: "Screenshot.png",
+      sourceApp: "Finder",
+      pasteboardTypes: ["public.file-url"],
+      fileURLs: [fileURL],
+      imageData: firstImageData,
+      imageContentType: "public.png",
+      imagePixelWidth: 1440,
+      imagePixelHeight: 900,
+      at: Date(timeIntervalSince1970: 100)
+    )
+    store.recordItem(
+      kind: .file,
+      content: "Screenshot.png",
+      sourceApp: "Finder",
+      pasteboardTypes: ["public.file-url"],
+      fileURLs: [fileURL],
+      imageData: secondImageData,
+      imageContentType: "public.png",
+      imagePixelWidth: 1600,
+      imagePixelHeight: 1000,
+      at: Date(timeIntervalSince1970: 200)
+    )
+
+    let item = try require(store.items.first, "expected image file item")
+    try expect(item.kind == .file, "expected Finder image copy to keep file semantics")
+    try expect(item.fileURLs == [fileURL], "expected file URL to remain available")
+    try expect(item.imageData == secondImageData, "expected image preview data to update")
+    try expect(item.imageContentType == "public.png", "expected image preview content type")
+    try expect(item.imageSizeDescription == "1600x1000", "expected image preview dimensions")
+    try expect(item.copyCount == 2, "expected duplicate image file copy count")
   }
 
   @MainActor
