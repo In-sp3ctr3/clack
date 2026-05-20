@@ -14,11 +14,12 @@
   <body>
     <header class="site-header">
       <a class="brand" href="/" aria-label="Clack home">
-        <img src="./assets/clack-icon.png" alt="" width="36" height="36">
+        <img src="./assets/clack-icon.png" alt="" width="38" height="38">
         <span>Clack</span>
       </a>
       <nav aria-label="Primary">
         <a href="#features">Features</a>
+        <a href="#demo">Demo</a>
         <a href="#download">Download</a>
         <a href="https://github.com/In-sp3ctr3/clack">GitHub</a>
       </nav>
@@ -26,199 +27,292 @@
 
     <main>
       <section class="hero" aria-labelledby="hero-title">
-        <p class="eyebrow">Clipboard memory for macOS</p>
-        <h1 id="hero-title">Clack</h1>
-        <p class="lede">
-          A native menu bar app that remembers what you copy, keeps it searchable,
-          and brings it back exactly when you need it.
-        </p>
+        <div class="hero-copy">
+          <p class="eyebrow">Native clipboard memory for macOS</p>
+          <h1 id="hero-title">Clack</h1>
+          <p class="lede">
+            A fast menu bar clipboard manager that keeps text, links, files, and images
+            close without turning your workflow into another full app window.
+          </p>
 
-        <div class="hero-actions" id="download" aria-label="Download options">
-          <a class="button primary" href="https://github.com/In-sp3ctr3/clack/releases">
-            Download alpha
-          </a>
-          <a class="button secondary" href="https://github.com/In-sp3ctr3/clack">
-            View source
-          </a>
+          <div class="hero-actions" aria-label="Download options">
+            <a class="button primary" href="https://github.com/In-sp3ctr3/clack/releases">
+              Download alpha
+            </a>
+            <a class="button secondary" href="https://github.com/In-sp3ctr3/clack">
+              View on GitHub
+            </a>
+          </div>
+
+          <div class="install-line" aria-label="Install with Homebrew">
+            <span>Homebrew</span>
+            <code>brew install --cask In-sp3ctr3/tap/clack</code>
+          </div>
         </div>
 
-        <div class="install-line" aria-label="Install with Homebrew">
-          <span>Homebrew</span>
-          <code>brew install --cask In-sp3ctr3/tap/clack</code>
-        </div>
-
-        <div class="laptop-stage" aria-label="Clack macOS app mockup">
-          <div class="laptop">
-            <div class="screen">
-              <div class="mac-menu">
-                <span class="window-dot"></span>
-                <span class="window-dot"></span>
-                <span class="window-dot"></span>
-                <span class="menu-chip">
-                  <img src="./assets/clack-icon.png" alt="" width="16" height="16">
-                  Clack
-                </span>
-                <span class="menu-status">9:41 AM</span>
-              </div>
-
-              <div class="desktop">
-                <div class="popover-demo" aria-label="Clack menu preview">
-                  <div class="popover-header">
-                    <strong>Clack</strong>
-                    <div class="search-field">
-                      <span aria-hidden="true">⌕</span>
-                      <span>Search</span>
+        <div class="macbook-stage" aria-label="Clack running from the macOS menu bar">
+          <div class="macbook">
+            <div class="macbook-lid">
+              <div class="screen">
+                <span class="camera" aria-hidden="true"></span>
+                <div class="desktop-scene">
+                  <div class="menu-bar">
+                    <div class="menu-left" aria-hidden="true">
+                      <strong>Finder</strong>
+                      <span>File</span>
+                      <span>Edit</span>
+                      <span>View</span>
+                    </div>
+                    <div class="menu-right">
+                      <span aria-hidden="true">⌘</span>
+                      <button class="menu-bar-clack" type="button" aria-label="Clack menu bar icon">
+                        <img src="./assets/clack-icon.png" alt="" width="16" height="16">
+                      </button>
+                      <span aria-hidden="true">Wi-Fi</span>
+                      <span aria-hidden="true">9:41</span>
                     </div>
                   </div>
 
-                  <button class="history-row active" type="button">
-                    <span>Launch checklist for alpha release</span>
-                    <kbd>⌘1</kbd>
-                  </button>
-                  <button class="history-row" type="button">
-                    <span>https://github.com/In-sp3ctr3/clack</span>
-                    <kbd>⌘2</kbd>
-                  </button>
-                  <button class="history-row" type="button">
-                    <span>Screenshot copied from Finder</span>
-                    <kbd>⌘3</kbd>
-                  </button>
-                  <button class="history-row" type="button">
-                    <span>brew install --cask In-sp3ctr3/tap/clack</span>
-                    <kbd>⌘4</kbd>
-                  </button>
-
-                  <div class="popover-footer">
-                    <span>Clear</span>
-                    <span>Preferences</span>
-                    <span>Quit</span>
+                  <div class="desktop-notes" aria-hidden="true">
+                    <span class="note note-amber">copy</span>
+                    <span class="note note-blue">search</span>
+                    <span class="note note-green">restore</span>
                   </div>
-                </div>
 
-                <div class="preview-card">
-                  <p>Launch checklist for alpha release</p>
-                  <dl>
-                    <div>
-                      <dt>Application</dt>
-                      <dd>Notes</dd>
+                  <aside class="hover-preview hero-preview" aria-label="Clipboard item details">
+                    <div class="preview-content code-preview">
+                      <span>Before locking the plan, surface four concise findings.</span>
                     </div>
-                    <div>
-                      <dt>First copied</dt>
-                      <dd>Today, 9:36 AM</dd>
+                    <dl>
+                      <div>
+                        <dt>Application</dt>
+                        <dd>Notes</dd>
+                      </div>
+                      <div>
+                        <dt>First time copied</dt>
+                        <dd>Today, 9:36 AM</dd>
+                      </div>
+                      <div>
+                        <dt>Last time copied</dt>
+                        <dd>Today, 9:41 AM</dd>
+                      </div>
+                      <div>
+                        <dt>Number of copies</dt>
+                        <dd>3</dd>
+                      </div>
+                    </dl>
+                    <p>Press ⌘P to pin</p>
+                    <p>Press ⌘⌫ to delete</p>
+                  </aside>
+
+                  <section class="clack-menu hero-menu" aria-label="Clack menu preview">
+                    <div class="clack-header">
+                      <strong>Clack</strong>
+                      <div class="clack-search">
+                        <img src="./assets/clack-icon.png" alt="" width="13" height="13">
+                        <span>Search</span>
+                      </div>
                     </div>
-                    <div>
-                      <dt>Copies</dt>
-                      <dd>3</dd>
+
+                    <button class="clack-row is-active" type="button">
+                      <span class="row-dot" aria-hidden="true"></span>
+                      <span class="row-text">Before locking the plan, surface four concise findings.</span>
+                      <kbd>⌘1</kbd>
+                    </button>
+                    <button class="clack-row" type="button">
+                      <span class="row-text">https://github.com/In-sp3ctr3/clack</span>
+                      <kbd>⌘2</kbd>
+                    </button>
+                    <button class="clack-row image-row" type="button">
+                      <span class="image-thumb screenshot-thumb" aria-label="Copied image preview"></span>
+                      <kbd>⌘3</kbd>
+                    </button>
+                    <button class="clack-row" type="button">
+                      <span class="row-text">brew install --cask In-sp3ctr3/tap/clack</span>
+                      <kbd>⌘4</kbd>
+                    </button>
+                    <button class="clack-row" type="button">
+                      <span class="row-text">Final launch copy for README</span>
+                      <kbd>⌘5</kbd>
+                    </button>
+
+                    <div class="clack-footer">
+                      <button type="button"><span>Clear</span><kbd>⇧⌘K</kbd></button>
+                      <button type="button"><span>Preferences</span><kbd>⌘,</kbd></button>
+                      <button type="button"><span>About</span></button>
+                      <button type="button"><span>Quit</span><kbd>⌘Q</kbd></button>
                     </div>
-                  </dl>
-                  <span>Press ⌘P to pin</span>
+                  </section>
                 </div>
               </div>
             </div>
-            <div class="laptop-base"></div>
+            <div class="macbook-base" aria-hidden="true">
+              <span></span>
+            </div>
           </div>
         </div>
       </section>
 
-      <section class="interactive-demo" id="features" aria-labelledby="demo-title">
+      <section class="proof-strip" aria-label="Clack highlights">
+        <article>
+          <span>01</span>
+          <strong>Menu bar native</strong>
+          <p>Opens from the top of macOS, then disappears when you choose an item.</p>
+        </article>
+        <article>
+          <span>02</span>
+          <strong>Keyboard first</strong>
+          <p>Restore the newest nine items with Command-number shortcuts.</p>
+        </article>
+        <article>
+          <span>03</span>
+          <strong>Visual history</strong>
+          <p>Images show as thumbnails, not vague labels.</p>
+        </article>
+      </section>
+
+      <section class="product-demo" id="demo" aria-labelledby="demo-title">
         <div class="section-heading">
-          <p class="eyebrow">Try the rhythm</p>
-          <h2 id="demo-title">A clipboard menu that stays out of the way.</h2>
+          <p class="eyebrow">Live product sketch</p>
+          <h2 id="demo-title">The menu is the product.</h2>
           <p>
-            Click a sample row to see how Clack keeps the item, shortcut, and metadata
-            close without turning your clipboard history into a full app window.
+            Click a row below. The selected item, shortcut, thumbnail, and hover details
+            use the same compact structure as the macOS app.
           </p>
         </div>
 
-        <div class="demo-shell">
-          <div class="demo-menu" role="list" aria-label="Interactive clipboard examples">
-            <button class="demo-row is-selected" type="button" data-demo="text">
-              <span>Final launch copy for README</span>
+        <div class="demo-stage">
+          <section class="clack-menu demo-menu" aria-label="Interactive Clack menu">
+            <div class="clack-header">
+              <strong>Clack</strong>
+              <div class="clack-search">
+                <img src="./assets/clack-icon.png" alt="" width="13" height="13">
+                <span>Search</span>
+              </div>
+            </div>
+
+            <button class="clack-row demo-row is-active" type="button" data-demo="text">
+              <span class="row-dot" aria-hidden="true"></span>
+              <span class="row-text">Final launch copy for README</span>
               <kbd>⌘1</kbd>
             </button>
-            <button class="demo-row" type="button" data-demo="image">
-              <span>Screenshot from Finder</span>
+            <button class="clack-row demo-row" type="button" data-demo="image">
+              <span class="image-thumb photo-thumb" aria-label="Copied image preview"></span>
               <kbd>⌘2</kbd>
             </button>
-            <button class="demo-row" type="button" data-demo="link">
-              <span>https://github.com/In-sp3ctr3/clack</span>
+            <button class="clack-row demo-row" type="button" data-demo="link">
+              <span class="row-text">https://github.com/In-sp3ctr3/clack</span>
               <kbd>⌘3</kbd>
             </button>
-            <button class="demo-row" type="button" data-demo="command">
-              <span>brew install --cask In-sp3ctr3/tap/clack</span>
+            <button class="clack-row demo-row" type="button" data-demo="command">
+              <span class="row-text">brew install --cask In-sp3ctr3/tap/clack</span>
               <kbd>⌘4</kbd>
             </button>
-          </div>
+            <button class="clack-row demo-row" type="button" data-demo="quote">
+              <span class="row-text">Pin the setup command before the release note pass.</span>
+              <kbd>⌘5</kbd>
+            </button>
 
-          <article class="demo-detail" aria-live="polite">
-            <p class="detail-label">Preview</p>
-            <h3 id="demo-detail-title">Final launch copy for README</h3>
-            <p id="demo-detail-copy">
-              Keep useful text close, restore it to the clipboard, then paste it wherever you were working.
-            </p>
+            <div class="clack-footer">
+              <button type="button"><span>Clear</span><kbd>⇧⌘K</kbd></button>
+              <button type="button"><span>Preferences</span><kbd>⌘,</kbd></button>
+              <button type="button"><span>About</span></button>
+              <button type="button"><span>Quit</span><kbd>⌘Q</kbd></button>
+            </div>
+          </section>
+
+          <article class="hover-preview demo-preview" aria-live="polite">
+            <div class="preview-content text-preview" id="demo-preview-media">
+              <span>Final launch copy for README</span>
+            </div>
             <dl>
               <div>
-                <dt>Source</dt>
-                <dd id="demo-detail-source">TextEdit</dd>
+                <dt>Application</dt>
+                <dd id="demo-source">TextEdit</dd>
               </div>
               <div>
-                <dt>Copies</dt>
-                <dd id="demo-detail-count">4</dd>
+                <dt>First time copied</dt>
+                <dd id="demo-first">Today, 9:18 AM</dd>
               </div>
               <div>
-                <dt>Action</dt>
-                <dd id="demo-detail-action">Press ⌘P to pin</dd>
+                <dt>Last time copied</dt>
+                <dd id="demo-last">Today, 9:43 AM</dd>
+              </div>
+              <div>
+                <dt>Number of copies</dt>
+                <dd id="demo-count">4</dd>
               </div>
             </dl>
+            <p id="demo-pin">Press ⌘P to pin</p>
+            <p>Press ⌘⌫ to delete</p>
           </article>
         </div>
       </section>
 
-      <section class="feature-grid" aria-label="Feature summary">
-        <article>
-          <span>01</span>
-          <h2>Local-first history</h2>
-          <p>Clipboard contents are stored on your Mac, with controls for what Clack remembers.</p>
-        </article>
-        <article>
-          <span>02</span>
-          <h2>Text, files, and images</h2>
-          <p>Restore plain text, formatted text, file URLs, and image copies from the same compact menu.</p>
-        </article>
-        <article>
-          <span>03</span>
-          <h2>Fast keyboard flow</h2>
-          <p>Use search, Command-number shortcuts, pinning, and delete shortcuts without leaving your context.</p>
-        </article>
-        <article>
-          <span>04</span>
-          <h2>Useful metadata</h2>
-          <p>Hover for source, first copied, last copied, copy count, and pin/delete hints.</p>
-        </article>
+      <section class="features" id="features" aria-labelledby="features-title">
+        <div class="section-heading">
+          <p class="eyebrow">Built for daily copy work</p>
+          <h2 id="features-title">Fast enough to forget it is there.</h2>
+        </div>
+
+        <div class="feature-grid">
+          <article class="feature-card accent-amber">
+            <span>Search</span>
+            <h3>Find copied text, links, files, and images.</h3>
+            <p>Exact, contains, and regular-expression search modes are available from preferences.</p>
+          </article>
+          <article class="feature-card accent-blue">
+            <span>Preview</span>
+            <h3>Hover for the full item and useful metadata.</h3>
+            <p>Source app, first copy, last copy, copy count, pin, and delete hints stay in the side popover.</p>
+          </article>
+          <article class="feature-card accent-green">
+            <span>Restore</span>
+            <h3>Click once, then paste where you already were.</h3>
+            <p>Restored items move back to the top because they are now the newest clipboard item.</p>
+          </article>
+          <article class="feature-card accent-pink">
+            <span>Control</span>
+            <h3>Choose what Clack remembers.</h3>
+            <p>Storage, appearance, pinning, ignored apps, ignored pasteboard types, and advanced cleanup are configurable.</p>
+          </article>
+        </div>
       </section>
 
-      <section class="testimonials" aria-label="Testimonials">
-        <figure>
-          <blockquote>
-            "Clack feels like the clipboard Apple forgot to ship: quiet, native, and right where I need it."
-          </blockquote>
-          <figcaption>Early tester</figcaption>
-        </figure>
-        <figure>
-          <blockquote>
-            "The menu is fast enough that copying links, notes, and commands finally feels reversible."
-          </blockquote>
-          <figcaption>macOS power user</figcaption>
-        </figure>
+      <section class="testimonials" aria-labelledby="testimonials-title">
+        <div class="section-heading compact">
+          <p class="eyebrow">Early alpha notes</p>
+          <h2 id="testimonials-title">What testers notice first.</h2>
+        </div>
+        <div class="testimonial-grid">
+          <figure>
+            <blockquote>
+              "It feels like part of macOS instead of a separate dashboard I have to manage."
+            </blockquote>
+            <figcaption>Developer testing the alpha</figcaption>
+          </figure>
+          <figure>
+            <blockquote>
+              "The image thumbnails are the difference between history and actual memory."
+            </blockquote>
+            <figcaption>Designer testing the alpha</figcaption>
+          </figure>
+          <figure>
+            <blockquote>
+              "Command-number restore is the tiny workflow detail that makes it stick."
+            </blockquote>
+            <figcaption>Power user testing the alpha</figcaption>
+          </figure>
+        </div>
       </section>
 
-      <section class="download-panel" aria-labelledby="download-title">
+      <section class="download-panel" id="download" aria-labelledby="download-title">
         <div>
           <p class="eyebrow">Coming to macOS</p>
           <h2 id="download-title">Download the alpha today.</h2>
           <p>
-            Available through GitHub Releases and the project Homebrew tap.
-            App Store distribution is planned for a future signed release.
+            Available through GitHub Releases and Homebrew. A signed and notarized
+            App Store-ready release is planned after the alpha stabilizes.
           </p>
         </div>
         <div class="download-actions">
@@ -240,56 +334,79 @@
     </footer>
 
     <script>
-      const details = {
+      const demoDetails = {
         text: {
-          title: "Final launch copy for README",
-          copy: "Keep useful text close, restore it to the clipboard, then paste it wherever you were working.",
+          mediaClass: "preview-content text-preview",
+          media: "<span>Final launch copy for README</span>",
           source: "TextEdit",
+          first: "Today, 9:18 AM",
+          last: "Today, 9:43 AM",
           count: "4",
-          action: "Press ⌘P to pin"
+          pin: "Press ⌘P to pin"
         },
         image: {
-          title: "Screenshot from Finder",
-          copy: "Image copies show a thumbnail in the menu and a larger preview on hover.",
+          mediaClass: "preview-content image-preview",
+          media: "<span class=\"large-image-thumb\"></span>",
           source: "Finder",
+          first: "Today, 9:21 AM",
+          last: "Today, 9:37 AM",
           count: "2",
-          action: "Press ⌘⌫ to delete"
+          pin: "Press ⌘P to pin"
         },
         link: {
-          title: "https://github.com/In-sp3ctr3/clack",
-          copy: "URLs, notes, and repeated links stay searchable without cluttering the desktop.",
+          mediaClass: "preview-content text-preview",
+          media: "<span>https://github.com/In-sp3ctr3/clack</span>",
           source: "Safari",
+          first: "Today, 8:55 AM",
+          last: "Today, 9:34 AM",
           count: "6",
-          action: "Press ⌘P to pin"
+          pin: "Press ⌘P to pin"
         },
         command: {
-          title: "brew install --cask In-sp3ctr3/tap/clack",
-          copy: "Commands are easy to find again, with shortcuts for the newest nine items.",
+          mediaClass: "preview-content code-preview",
+          media: "<span>brew install --cask In-sp3ctr3/tap/clack</span>",
           source: "Terminal",
+          first: "Today, 9:12 AM",
+          last: "Today, 9:28 AM",
           count: "3",
-          action: "Press ⌘1 to restore"
+          pin: "Press ⌘P to pin"
+        },
+        quote: {
+          mediaClass: "preview-content text-preview",
+          media: "<span>Pin the setup command before the release note pass.</span>",
+          source: "Notes",
+          first: "Today, 9:30 AM",
+          last: "Today, 9:31 AM",
+          count: "1",
+          pin: "Press ⌘P to pin"
         }
       };
 
       const rows = document.querySelectorAll(".demo-row");
-      const title = document.querySelector("#demo-detail-title");
-      const copy = document.querySelector("#demo-detail-copy");
-      const source = document.querySelector("#demo-detail-source");
-      const count = document.querySelector("#demo-detail-count");
-      const action = document.querySelector("#demo-detail-action");
+      const media = document.querySelector("#demo-preview-media");
+      const source = document.querySelector("#demo-source");
+      const first = document.querySelector("#demo-first");
+      const last = document.querySelector("#demo-last");
+      const count = document.querySelector("#demo-count");
+      const pin = document.querySelector("#demo-pin");
+
+      function selectDemo(row) {
+        rows.forEach((item) => item.classList.remove("is-active"));
+        row.classList.add("is-active");
+
+        const detail = demoDetails[row.dataset.demo];
+        media.className = detail.mediaClass;
+        media.innerHTML = detail.media;
+        source.textContent = detail.source;
+        first.textContent = detail.first;
+        last.textContent = detail.last;
+        count.textContent = detail.count;
+        pin.textContent = detail.pin;
+      }
 
       rows.forEach((row) => {
-        row.addEventListener("click", () => {
-          rows.forEach((item) => item.classList.remove("is-selected"));
-          row.classList.add("is-selected");
-
-          const detail = details[row.dataset.demo];
-          title.textContent = detail.title;
-          copy.textContent = detail.copy;
-          source.textContent = detail.source;
-          count.textContent = detail.count;
-          action.textContent = detail.action;
-        });
+        row.addEventListener("click", () => selectDemo(row));
+        row.addEventListener("mouseenter", () => selectDemo(row));
       });
     </script>
   </body>
