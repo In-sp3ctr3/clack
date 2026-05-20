@@ -294,27 +294,30 @@ struct PreferencesView: View {
 
       Divider()
 
-      VStack(spacing: 14) {
-        if pinnedItems.isEmpty {
-          ForEach(0..<7, id: \.self) { _ in
-            RoundedRectangle(cornerRadius: 10)
-              .fill(Color(nsColor: .controlBackgroundColor))
-              .frame(height: 26)
-          }
-        } else {
-          ForEach(Array(pinnedItems.enumerated()), id: \.element.id) { index, item in
-            PinnedItemRow(index: index, item: item)
+      ScrollView {
+        VStack(spacing: 8) {
+          if pinnedItems.isEmpty {
+            ForEach(0..<5, id: \.self) { _ in
+              RoundedRectangle(cornerRadius: 9)
+                .fill(Color(nsColor: .controlBackgroundColor))
+                .frame(height: 24)
+            }
+          } else {
+            ForEach(Array(pinnedItems.enumerated()), id: \.element.id) { index, item in
+              PinnedItemRow(index: index, item: item)
+            }
           }
         }
       }
-
-      Spacer(minLength: 8)
+      .frame(maxHeight: 150)
+      .scrollIndicators(.automatic)
 
       Text("Pinned items stay in history when clearing unpinned items.")
         .font(.callout)
         .foregroundStyle(.secondary)
+        .lineLimit(2)
     }
-    .frame(maxWidth: .infinity, minHeight: 300, alignment: .topLeading)
+    .frame(maxWidth: .infinity, alignment: .topLeading)
   }
 
   private var ignorePane: some View {
@@ -347,6 +350,7 @@ struct PreferencesView: View {
           Text("Application matching uses the frontmost app name reported by macOS.")
             .font(.callout)
             .foregroundStyle(.secondary)
+            .lineLimit(2)
 
         case .pasteboardTypes:
           ListEditor(
@@ -360,6 +364,7 @@ struct PreferencesView: View {
           Text("Defaults include transient and password-manager pasteboard types.")
             .font(.callout)
             .foregroundStyle(.secondary)
+            .lineLimit(2)
 
         case .regularExpressions:
           ListEditor(
@@ -373,16 +378,17 @@ struct PreferencesView: View {
           Text("Expressions are matched against copied text before it is stored.")
             .font(.callout)
             .foregroundStyle(.secondary)
+            .lineLimit(2)
         }
       }
-      .padding(12)
+      .padding(10)
       .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
     }
-    .frame(maxWidth: .infinity, minHeight: 300, alignment: .topLeading)
+    .frame(maxWidth: .infinity, alignment: .topLeading)
   }
 
   private var advancedPane: some View {
-    VStack(alignment: .leading, spacing: 10) {
+    VStack(alignment: .leading, spacing: 8) {
       Toggle("Turn off", isOn: $preferences.temporarilyIgnoreNewCopies)
         .toggleStyle(.checkbox)
         .font(.body)
@@ -391,15 +397,17 @@ struct PreferencesView: View {
         .font(.callout)
         .foregroundStyle(.secondary)
 
-      VStack(alignment: .leading, spacing: 4) {
+      VStack(alignment: .leading, spacing: 3) {
         Text("defaults write com.jadanjones.Clack temporarilyIgnoreNewCopies true")
         Text("# copy data")
         Text("defaults write com.jadanjones.Clack temporarilyIgnoreNewCopies false")
         Text("defaults write com.jadanjones.Clack ignoreOnlyNextCopy true")
         Text("# copy data")
       }
-      .font(.system(size: 12, design: .monospaced))
+      .font(.system(size: 11, design: .monospaced))
       .foregroundStyle(.secondary)
+      .lineLimit(1)
+      .minimumScaleFactor(0.8)
 
       PreferenceDivider()
 
