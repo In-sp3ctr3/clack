@@ -19,6 +19,8 @@ struct ClackPopoverView: View {
   @FocusState private var searchFocused: Bool
   @State private var selectedItemID: ClipboardItem.ID?
   @State private var previewIsOpen = false
+  @State private var previewOpenTask: Task<Void, Never>?
+  @State private var searchFocusTask: Task<Void, Never>?
 
   private var visibleItems: [ClipboardItem] {
     let filteredItems = store.items.filter {
@@ -64,7 +66,7 @@ struct ClackPopoverView: View {
       height: currentContentSize.height,
       alignment: .trailing
     )
-    .background(Color(nsColor: .windowBackgroundColor))
+    .background(ClackPanelMaterial())
     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     .overlay(
       RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -80,12 +82,16 @@ struct ClackPopoverView: View {
       .frame(width: 0, height: 0)
       .accessibilityHidden(true)
     )
-    .animation(.easeInOut(duration: 0.16), value: previewIsOpen)
     .onAppear {
       searchFocused = true
+      scheduleSearchFocus()
       syncSelectionWithVisibleItems()
       previewIsOpen = false
       setContentSize(currentContentSize)
+    }
+    .onDisappear {
+      previewOpenTask?.cancel()
+      searchFocusTask?.cancel()
     }
     .onChange(of: visibleItemIDs) { _ in
       syncSelectionWithVisibleItems()
@@ -195,10 +201,7 @@ struct ClackPopoverView: View {
       isSelected: selectedItem?.id == item.id,
       restore: { actions.restore(item) },
       onHover: { isHovering in
-        if isHovering {
-          selectedItemID = item.id
-          previewIsOpen = true
-        }
+        handleHover(item: item, isHovering: isHovering)
       }
     )
 
@@ -294,7 +297,12 @@ struct ClackPopoverView: View {
       nextIndex = min((currentIndex ?? -1) + 1, visibleItems.count - 1)
     }
 
-    selectedItemID = visibleItems[nextIndex].id
+    let nextItemID = visibleItems[nextIndex].id
+    selectedItemID = nextItemID
+
+    if !previewIsOpen {
+      schedulePreviewOpen(for: nextItemID)
+    }
   }
 
   private func restoreSelectedItem() {
@@ -319,6 +327,51 @@ struct ClackPopoverView: View {
     }
 
     actions.delete(selectedItem)
+  }
+
+  private func handleHover(item: ClipboardItem, isHovering: Bool) {
+    if isHovering {
+      selectedItemID = item.id
+
+      guard !previewIsOpen else {
+        previewOpenTask?.cancel()
+        return
+      }
+
+      schedulePreviewOpen(for: item.id)
+    } else if !previewIsOpen && selectedItemID == item.id {
+      previewOpenTask?.cancel()
+    }
+  }
+
+  private func schedulePreviewOpen(for itemID: ClipboardItem.ID) {
+    previewOpenTask?.cancel()
+
+    let delay = UInt64(max(preferences.previewDelayMilliseconds, 0)) * 1_000_000
+    previewOpenTask = Task { @MainActor in
+      if delay > 0 {
+        try? await Task.sleep(nanoseconds: delay)
+      }
+
+      guard !Task.isCancelled, selectedItemID == itemID else {
+        return
+      }
+
+      previewIsOpen = true
+    }
+  }
+
+  private func scheduleSearchFocus() {
+    searchFocusTask?.cancel()
+    searchFocusTask = Task { @MainActor in
+      try? await Task.sleep(nanoseconds: 75_000_000)
+
+      guard !Task.isCancelled else {
+        return
+      }
+
+      searchFocused = true
+    }
   }
 
   private func syncSelectionWithVisibleItems() {
@@ -545,6 +598,22 @@ private struct PreviewTextScrollView: NSViewRepresentable {
 
   final class Coordinator {
     weak var textView: NSTextView?
+  }
+}
+
+private struct ClackPanelMaterial: NSViewRepresentable {
+  func makeNSView(context: Context) -> NSVisualEffectView {
+    let view = NSVisualEffectView()
+    view.material = .popover
+    view.blendingMode = .behindWindow
+    view.state = .active
+    return view
+  }
+
+  func updateNSView(_ view: NSVisualEffectView, context: Context) {
+    view.material = .popover
+    view.blendingMode = .behindWindow
+    view.state = .active
   }
 }
 

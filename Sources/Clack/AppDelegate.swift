@@ -7,11 +7,12 @@ import SwiftUI
 final class AppDelegate: NSObject, NSApplicationDelegate {
   private let preferences: ClackPreferences
   private let store: ClipboardHistoryStore
-  private let popover = NSPopover()
 
   private var monitor: PasteboardMonitor?
   private var globalHotKeys: GlobalHotKeyController?
   private var statusItem: NSStatusItem?
+  private var panel: ClackFloatingPanel?
+  private var suppressPanelOpenUntil: Date?
   private var preferencesWindowController: NSWindowController?
   private var cancellables: Set<AnyCancellable> = []
 
@@ -28,7 +29,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     configureStatusItem()
-    configurePopover()
     configureGlobalHotKeys()
     observePreferences()
 
@@ -119,7 +119,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     return image
   }
 
-  private func configurePopover() {
+  private func makeClipboardActions() -> ClipboardActions {
     let actions = ClipboardActions(
       restore: { [weak self] item in
         self?.restore(item)
@@ -134,9 +134,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self?.store.clearUnpinned()
       },
       showPreferences: { [weak self] in
+        self?.closePanel()
         self?.showPreferences()
       },
       showAbout: { [weak self] in
+        self?.closePanel()
         self?.showAbout()
       },
       quit: {
@@ -144,19 +146,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       }
     )
 
-    popover.behavior = .transient
-    popover.animates = true
-    popover.contentSize = ClackPopoverView.compactContentSize
-    popover.contentViewController = NSHostingController(
-      rootView: ClackPopoverView(
-        store: store,
-        preferences: preferences,
-        actions: actions,
-        setContentSize: { [weak self] size in
-          self?.popover.contentSize = size
-        }
-      )
-    )
+    return actions
   }
 
   private func configureGlobalHotKeys() {
@@ -203,7 +193,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     monitor?.ignoreChange(count: pasteboard.changeCount)
-    popover.performClose(nil)
+    closePanel()
   }
 
   private func showPreferences() {
@@ -251,11 +241,54 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       return
     }
 
-    if popover.isShown {
-      popover.performClose(sender)
+    if panel?.isPresented == true {
+      closePanel()
     } else {
-      NSApplication.shared.activate(ignoringOtherApps: true)
-      popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+      if shouldSuppressPanelOpen() {
+        return
+      }
+
+      openPanel(relativeTo: button)
     }
+  }
+
+  private func openPanel(relativeTo button: NSStatusBarButton) {
+    let panel = ClackFloatingPanel(
+      contentSize: ClackPopoverView.compactContentSize,
+      statusButton: button,
+      onClose: { [weak self] in
+        self?.suppressPanelOpenUntil = Date().addingTimeInterval(0.25)
+        self?.panel = nil
+      },
+      rootView: ClackPopoverView(
+        store: store,
+        preferences: preferences,
+        actions: makeClipboardActions(),
+        setContentSize: { [weak self] size in
+          self?.panel?.resizeContent(to: size, anchoredTo: self?.statusItem?.button)
+        }
+      )
+    )
+
+    self.panel = panel
+    panel.open()
+  }
+
+  private func closePanel() {
+    panel?.close()
+    panel = nil
+  }
+
+  private func shouldSuppressPanelOpen() -> Bool {
+    guard let suppressPanelOpenUntil else {
+      return false
+    }
+
+    if Date() < suppressPanelOpenUntil {
+      return true
+    }
+
+    self.suppressPanelOpenUntil = nil
+    return false
   }
 }
