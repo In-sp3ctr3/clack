@@ -5,10 +5,15 @@ import SwiftUI
 struct ClackPopoverView: View {
   static let compactContentSize = NSSize(width: 330, height: 480)
 
-  private static let expandedContentSize = NSSize(width: 648, height: 480)
+  private static let expandedContentSize = NSSize(width: 626, height: 480)
   private static let menuWidth: CGFloat = 330
-  private static let previewWidth: CGFloat = 310
+  private static let previewWidth: CGFloat = 288
+  private static let previewHeight: CGFloat = 268
+  private static let previewMargin: CGFloat = 8
   private static let popoverHeight: CGFloat = 480
+  private static let headerHeight: CGFloat = 65
+  private static let rowHeight: CGFloat = 28
+  private static let rowStride: CGFloat = 29
 
   @ObservedObject var store: ClipboardHistoryStore
   @ObservedObject var preferences: ClackPreferences
@@ -53,12 +58,39 @@ struct ClackPopoverView: View {
     hoveredItem == nil ? Self.compactContentSize : Self.expandedContentSize
   }
 
+  private var hoveredRowCenterY: CGFloat? {
+    guard
+      let hoveredItemID,
+      let index = visibleItems.firstIndex(where: { $0.id == hoveredItemID })
+    else {
+      return nil
+    }
+
+    return Self.headerHeight + (CGFloat(index) * Self.rowStride) + (Self.rowHeight / 2)
+  }
+
+  private var detailCardTopOffset: CGFloat {
+    let centeredOffset = (hoveredRowCenterY ?? (Self.popoverHeight / 2)) - (Self.previewHeight / 2)
+    let maximumOffset = Self.popoverHeight - Self.previewHeight - Self.previewMargin
+    return min(max(centeredOffset, Self.previewMargin), maximumOffset)
+  }
+
+  private var detailCardPointerY: CGFloat {
+    let pointerY = (hoveredRowCenterY ?? (Self.popoverHeight / 2)) - detailCardTopOffset
+    return min(max(pointerY, 26), Self.previewHeight - 26)
+  }
+
   var body: some View {
     HStack(alignment: .top, spacing: 8) {
       if let hoveredItem {
-        HoverDetailCard(item: hoveredItem)
-          .frame(width: Self.previewWidth, height: Self.popoverHeight)
-          .transition(.opacity.combined(with: .move(edge: .trailing)))
+        ZStack(alignment: .topTrailing) {
+          HoverDetailCard(
+            item: hoveredItem,
+            pointerY: detailCardPointerY
+          )
+          .frame(width: Self.previewWidth, height: Self.previewHeight)
+          .padding(.top, detailCardTopOffset)
+          .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .trailing)))
           .onHover { isHovering in
             detailCardIsHovered = isHovering
 
@@ -66,6 +98,8 @@ struct ClackPopoverView: View {
               clearHoveredItemAfterDelay(hoveredItem.id)
             }
           }
+        }
+        .frame(width: Self.previewWidth, height: Self.popoverHeight)
       }
 
       mainMenu
@@ -113,7 +147,12 @@ struct ClackPopoverView: View {
       footer
     }
     .frame(width: Self.menuWidth, height: Self.popoverHeight)
-    .background(Color(nsColor: .windowBackgroundColor))
+    .background(.regularMaterial)
+    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    .overlay(
+      RoundedRectangle(cornerRadius: 12, style: .continuous)
+        .stroke(Color(nsColor: .separatorColor).opacity(0.45), lineWidth: 0.5)
+    )
   }
 
   private var header: some View {
@@ -162,8 +201,8 @@ struct ClackPopoverView: View {
     }
     .padding(.horizontal, 8)
     .frame(height: 26)
-    .background(Color(nsColor: .controlBackgroundColor))
-    .clipShape(RoundedRectangle(cornerRadius: 6))
+    .background(Color(nsColor: .controlBackgroundColor).opacity(0.72))
+    .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
   }
 
   @ViewBuilder
@@ -441,16 +480,18 @@ private struct CompactClipboardRow: View {
 
 private struct HoverDetailCard: View {
   let item: ClipboardItem
+  let pointerY: CGFloat
 
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
       payloadPreview
-        .frame(maxWidth: .infinity, maxHeight: 230, alignment: .topLeading)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .frame(height: 104)
 
       Divider()
-        .padding(.vertical, 11)
+        .padding(.vertical, 10)
 
-      VStack(alignment: .leading, spacing: 7) {
+      VStack(alignment: .leading, spacing: 6) {
         DetailMetadataRow(title: "Application", value: item.sourceApp ?? "Unknown")
         DetailMetadataRow(title: "First time copied", value: detailDateFormatter.string(from: item.firstCopiedAt))
         DetailMetadataRow(title: "Last time copied", value: detailDateFormatter.string(from: item.lastCopiedAt))
@@ -459,21 +500,26 @@ private struct HoverDetailCard: View {
 
       Spacer(minLength: 12)
 
-      VStack(alignment: .leading, spacing: 5) {
+      VStack(alignment: .leading, spacing: 4) {
         Text("Press ⌘P to \(item.isPinned ? "unpin" : "pin")")
         Text("Press ⌘⌫ to delete")
       }
       .font(.system(size: 12))
       .foregroundStyle(.secondary)
     }
-    .padding(12)
-    .background(Color(nsColor: .windowBackgroundColor))
-    .clipShape(RoundedRectangle(cornerRadius: 10))
-    .overlay(
-      RoundedRectangle(cornerRadius: 10)
-        .stroke(Color(nsColor: .separatorColor).opacity(0.8), lineWidth: 1)
+    .padding(.leading, 12)
+    .padding(.trailing, 20)
+    .padding(.vertical, 12)
+    .background(
+      PopoutBubbleShape(pointerY: pointerY)
+        .fill(.regularMaterial)
     )
-    .shadow(color: .black.opacity(0.14), radius: 18, y: 8)
+    .overlay(
+      PopoutBubbleShape(pointerY: pointerY)
+        .stroke(Color(nsColor: .separatorColor).opacity(0.5), lineWidth: 0.5)
+    )
+    .clipShape(PopoutBubbleShape(pointerY: pointerY))
+    .shadow(color: .black.opacity(0.18), radius: 20, x: 0, y: 10)
     .accessibilityElement(children: .contain)
     .accessibilityLabel("Clipboard item details")
   }
@@ -490,8 +536,8 @@ private struct HoverDetailCard: View {
           .frame(maxWidth: .infinity, alignment: .leading)
           .padding(9)
       }
-      .background(Color(nsColor: .textBackgroundColor))
-      .clipShape(RoundedRectangle(cornerRadius: 6))
+      .background(Color(nsColor: .textBackgroundColor).opacity(0.58))
+      .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
       .accessibilityLabel("Full clipboard content")
     case .file:
       ScrollView {
@@ -507,8 +553,8 @@ private struct HoverDetailCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(9)
       }
-      .background(Color(nsColor: .textBackgroundColor))
-      .clipShape(RoundedRectangle(cornerRadius: 6))
+      .background(Color(nsColor: .textBackgroundColor).opacity(0.58))
+      .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
       .accessibilityLabel("Copied files")
     case .image:
       if
@@ -520,18 +566,77 @@ private struct HoverDetailCard: View {
           .scaledToFit()
           .padding(8)
           .frame(maxWidth: .infinity, maxHeight: .infinity)
-          .background(Color(nsColor: .textBackgroundColor))
-          .clipShape(RoundedRectangle(cornerRadius: 6))
+          .background(Color(nsColor: .textBackgroundColor).opacity(0.58))
+          .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
           .accessibilityLabel("Copied image preview")
       } else {
         Text(item.detailText)
           .font(.system(size: 12))
           .foregroundStyle(.secondary)
           .frame(maxWidth: .infinity, maxHeight: .infinity)
-          .background(Color(nsColor: .textBackgroundColor))
-          .clipShape(RoundedRectangle(cornerRadius: 6))
+          .background(Color(nsColor: .textBackgroundColor).opacity(0.58))
+          .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
       }
     }
+  }
+}
+
+private struct PopoutBubbleShape: Shape {
+  var pointerY: CGFloat
+
+  var animatableData: CGFloat {
+    get { pointerY }
+    set { pointerY = newValue }
+  }
+
+  func path(in rect: CGRect) -> Path {
+    let notchWidth: CGFloat = 8
+    let notchHeight: CGFloat = 20
+    let radius: CGFloat = 12
+    let body = CGRect(
+      x: rect.minX,
+      y: rect.minY,
+      width: rect.width - notchWidth,
+      height: rect.height
+    )
+    let clampedPointerY = min(
+      max(pointerY, body.minY + radius + (notchHeight / 2)),
+      body.maxY - radius - (notchHeight / 2)
+    )
+
+    var path = Path()
+    path.move(to: CGPoint(x: body.minX + radius, y: body.minY))
+    path.addLine(to: CGPoint(x: body.maxX - radius, y: body.minY))
+    path.addQuadCurve(
+      to: CGPoint(x: body.maxX, y: body.minY + radius),
+      control: CGPoint(x: body.maxX, y: body.minY)
+    )
+    path.addLine(to: CGPoint(x: body.maxX, y: clampedPointerY - (notchHeight / 2)))
+    path.addQuadCurve(
+      to: CGPoint(x: rect.maxX, y: clampedPointerY),
+      control: CGPoint(x: body.maxX + notchWidth, y: clampedPointerY - 6)
+    )
+    path.addQuadCurve(
+      to: CGPoint(x: body.maxX, y: clampedPointerY + (notchHeight / 2)),
+      control: CGPoint(x: body.maxX + notchWidth, y: clampedPointerY + 6)
+    )
+    path.addLine(to: CGPoint(x: body.maxX, y: body.maxY - radius))
+    path.addQuadCurve(
+      to: CGPoint(x: body.maxX - radius, y: body.maxY),
+      control: CGPoint(x: body.maxX, y: body.maxY)
+    )
+    path.addLine(to: CGPoint(x: body.minX + radius, y: body.maxY))
+    path.addQuadCurve(
+      to: CGPoint(x: body.minX, y: body.maxY - radius),
+      control: CGPoint(x: body.minX, y: body.maxY)
+    )
+    path.addLine(to: CGPoint(x: body.minX, y: body.minY + radius))
+    path.addQuadCurve(
+      to: CGPoint(x: body.minX + radius, y: body.minY),
+      control: CGPoint(x: body.minX, y: body.minY)
+    )
+    path.closeSubpath()
+    return path
   }
 }
 
