@@ -3,23 +3,26 @@ import AppKit
 import SwiftUI
 
 struct ClackPopoverView: View {
-  static let compactContentSize = NSSize(width: 330, height: 480)
+  static let compactContentSize = NSSize(width: 400, height: 480)
 
-  private static let expandedContentSize = NSSize(width: 648, height: 480)
-  private static let menuWidth: CGFloat = 330
-  private static let previewWidth: CGFloat = 310
+  private static let menuWidth: CGFloat = 400
   private static let popoverHeight: CGFloat = 480
 
   @ObservedObject var store: ClipboardHistoryStore
   @ObservedObject var preferences: ClackPreferences
 
   let actions: ClipboardActions
-  let setContentSize: (NSSize) -> Void
+  let showPreview: (ClipboardItem, NSRect) -> Void
+  let hidePreview: () -> Void
 
   @FocusState private var searchFocused: Bool
   @State private var selectedItemID: ClipboardItem.ID?
-  @State private var hoveredItemID: ClipboardItem.ID?
-  @State private var detailCardIsHovered = false
+  @State private var previewIsOpen = false
+  @State private var previewOpenTask: Task<Void, Never>?
+  @State private var previewCloseTask: Task<Void, Never>?
+  @State private var searchFocusTask: Task<Void, Never>?
+  @State private var scrollTargetID: ClipboardItem.ID?
+  @State private var rowRects: [ClipboardItem.ID: NSRect] = [:]
 
   private var visibleItems: [ClipboardItem] {
     let filteredItems = store.items.filter {
@@ -41,62 +44,44 @@ struct ClackPopoverView: View {
     return visibleItems.first
   }
 
-  private var hoveredItem: ClipboardItem? {
-    guard let hoveredItemID else {
-      return nil
-    }
-
-    return visibleItems.first { $0.id == hoveredItemID }
-  }
-
-  private var currentContentSize: NSSize {
-    hoveredItem == nil ? Self.compactContentSize : Self.expandedContentSize
-  }
-
   var body: some View {
-    HStack(alignment: .top, spacing: 8) {
-      if let hoveredItem {
-        HoverDetailCard(item: hoveredItem)
-          .frame(width: Self.previewWidth, height: Self.popoverHeight)
-          .transition(.opacity.combined(with: .move(edge: .trailing)))
-          .onHover { isHovering in
-            detailCardIsHovered = isHovering
-
-            if !isHovering {
-              clearHoveredItemAfterDelay(hoveredItem.id)
-            }
-          }
-      }
-
-      mainMenu
-    }
+    mainMenu
     .frame(
-      width: currentContentSize.width,
-      height: currentContentSize.height,
-      alignment: .trailing
+      width: Self.compactContentSize.width,
+      height: Self.compactContentSize.height
     )
-    .background(Color.clear)
+    .background(ClackPanelMaterial())
+    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    .overlay(
+      RoundedRectangle(cornerRadius: 12, style: .continuous)
+        .stroke(Color(nsColor: .separatorColor).opacity(0.45), lineWidth: 0.5)
+    )
     .background(
       KeyboardNavigationMonitor(
         moveSelection: moveSelection,
         restoreSelection: restoreSelectedItem,
         togglePinSelection: togglePinnedSelection,
-        deleteSelection: deleteSelectedItem
+        deleteSelection: deleteSelectedItem,
+        pinShortcut: preferences.pinShortcut,
+        deleteShortcut: preferences.deleteShortcut
       )
       .frame(width: 0, height: 0)
       .accessibilityHidden(true)
     )
-    .animation(.easeOut(duration: 0.12), value: hoveredItemID)
     .onAppear {
       searchFocused = true
+      scheduleSearchFocus()
       syncSelectionWithVisibleItems()
-      setContentSize(currentContentSize)
+      previewIsOpen = false
+    }
+    .onDisappear {
+      previewOpenTask?.cancel()
+      previewCloseTask?.cancel()
+      searchFocusTask?.cancel()
+      closePreview()
     }
     .onChange(of: visibleItemIDs) { _ in
       syncSelectionWithVisibleItems()
-    }
-    .onChange(of: hoveredItemID) { _ in
-      setContentSize(currentContentSize)
     }
   }
 
@@ -104,44 +89,49 @@ struct ClackPopoverView: View {
     VStack(spacing: 0) {
       header
 
-      Divider()
+      if preferences.showTitleBeforeSearchField || showsSearchField {
+        Divider()
+      }
 
       itemList
 
-      Divider()
+      if preferences.showFooter {
+        Divider()
 
-      footer
+        footer
+      }
     }
     .frame(width: Self.menuWidth, height: Self.popoverHeight)
-    .background(Color(nsColor: .windowBackgroundColor))
   }
 
   private var header: some View {
-    VStack(spacing: 7) {
-      Text("Clack")
-        .font(.system(size: 13, weight: .semibold))
-        .foregroundStyle(.primary)
-        .frame(maxWidth: .infinity, alignment: .center)
+    HStack(spacing: 8) {
+      if preferences.showTitleBeforeSearchField {
+        Text("Clack")
+          .font(.system(size: 13, weight: .semibold))
+          .foregroundStyle(.primary)
+          .frame(width: showsSearchField ? 58 : nil, alignment: .leading)
+      }
 
       if showsSearchField {
         searchBar
+          .frame(maxWidth: .infinity)
       }
     }
     .padding(.horizontal, 10)
-    .padding(.top, 8)
-    .padding(.bottom, showsSearchField ? 9 : 8)
+    .padding(.top, 7)
+    .padding(.bottom, showsSearchField ? 7 : 8)
   }
 
   private var searchBar: some View {
-    HStack(spacing: 6) {
-      Image(systemName: "magnifyingglass")
-        .font(.system(size: 11, weight: .medium))
+    HStack(spacing: 5) {
+      ClackTemplateIcon(size: 13)
         .foregroundStyle(.secondary)
         .accessibilityHidden(true)
 
       TextField("Search", text: $store.searchText)
         .textFieldStyle(.plain)
-        .font(.system(size: 13))
+        .font(.system(size: 12))
         .focused($searchFocused)
         .onSubmit(restoreSelectedItem)
         .accessibilityLabel("Search clipboard history")
@@ -160,10 +150,16 @@ struct ClackPopoverView: View {
         .help("Clear search")
       }
     }
-    .padding(.horizontal, 8)
-    .frame(height: 26)
-    .background(Color(nsColor: .controlBackgroundColor))
-    .clipShape(RoundedRectangle(cornerRadius: 6))
+    .padding(.horizontal, 7)
+    .frame(height: 22)
+    .background(
+      RoundedRectangle(cornerRadius: 7, style: .continuous)
+        .fill(Color(nsColor: .windowBackgroundColor).opacity(0.34))
+    )
+    .overlay(
+      RoundedRectangle(cornerRadius: 7, style: .continuous)
+        .stroke(Color(nsColor: .separatorColor).opacity(0.18), lineWidth: 0.5)
+    )
   }
 
   @ViewBuilder
@@ -178,15 +174,24 @@ struct ClackPopoverView: View {
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity)
     } else {
-      ScrollView {
-        LazyVStack(spacing: 0) {
-          ForEach(Array(visibleItems.enumerated()), id: \.element.id) { index, item in
-            shortcutRow(item: item, index: index)
+      ScrollViewReader { proxy in
+        ScrollView {
+          LazyVStack(spacing: 0) {
+            ForEach(Array(visibleItems.enumerated()), id: \.element.id) { index, item in
+              shortcutRow(item: item, index: index)
+                .id(item.id)
 
-            if item.id != visibleItems.last?.id {
-              Divider()
-                .padding(.leading, 10)
+              if item.id != visibleItems.last?.id {
+                Divider()
+                  .padding(.leading, 10)
+              }
             }
+          }
+        }
+        .onChange(of: scrollTargetID) { itemID in
+          if let itemID {
+            proxy.scrollTo(itemID, anchor: .center)
+            scrollTargetID = nil
           }
         }
       }
@@ -198,16 +203,18 @@ struct ClackPopoverView: View {
     let shortcutNumber = index < 9 ? index + 1 : nil
     let row = CompactClipboardRow(
       item: item,
+      preferences: preferences,
+      searchText: store.searchText,
       shortcutNumber: shortcutNumber,
       isSelected: selectedItem?.id == item.id,
-      restore: { actions.restore(item) },
+      restore: { modifiers in
+        actions.restore(item, restoreOptions(for: modifiers))
+      },
       onHover: { isHovering in
-        if isHovering {
-          selectedItemID = item.id
-          hoveredItemID = item.id
-        } else if hoveredItemID == item.id {
-          clearHoveredItemAfterDelay(item.id)
-        }
+        handleHover(item: item, isHovering: isHovering)
+      },
+      onFrameChange: { rect in
+        rowRects[item.id] = rect
       }
     )
 
@@ -303,7 +310,13 @@ struct ClackPopoverView: View {
       nextIndex = min((currentIndex ?? -1) + 1, visibleItems.count - 1)
     }
 
-    selectedItemID = visibleItems[nextIndex].id
+    let nextItemID = visibleItems[nextIndex].id
+    selectedItemID = nextItemID
+    scrollTargetID = nextItemID
+
+    if !previewIsOpen {
+      schedulePreviewOpen(for: nextItemID)
+    }
   }
 
   private func restoreSelectedItem() {
@@ -311,7 +324,7 @@ struct ClackPopoverView: View {
       return
     }
 
-    actions.restore(selectedItem)
+    actions.restore(selectedItem, restoreOptions(for: []))
   }
 
   private func togglePinnedSelection() {
@@ -328,31 +341,166 @@ struct ClackPopoverView: View {
     }
 
     actions.delete(selectedItem)
+  }
 
-    if hoveredItemID == selectedItem.id {
-      hoveredItemID = nil
+  private func restoreOptions(for modifiers: NSEvent.ModifierFlags) -> ClipboardRestoreOptions {
+    let activeModifiers = modifiers.intersection([.command, .shift, .option, .control])
+    let command = activeModifiers.contains(.command)
+    let shift = activeModifiers.contains(.shift)
+    let option = activeModifiers.contains(.option)
+
+    if preferences.pasteAutomatically, preferences.pasteWithoutFormatting {
+      if option {
+        return ClipboardRestoreOptions()
+      }
+
+      if command && shift {
+        return ClipboardRestoreOptions(pasteAfterRestore: true)
+      }
+
+      if command {
+        return ClipboardRestoreOptions(pasteAfterRestore: true, plainTextOnly: true)
+      }
+    } else if preferences.pasteAutomatically {
+      if command && shift {
+        return ClipboardRestoreOptions(pasteAfterRestore: true, plainTextOnly: true)
+      }
+
+      if option {
+        return ClipboardRestoreOptions()
+      }
+
+      if command {
+        return ClipboardRestoreOptions(pasteAfterRestore: true)
+      }
+    } else if preferences.pasteWithoutFormatting {
+      if option && shift {
+        return ClipboardRestoreOptions(pasteAfterRestore: true)
+      }
+
+      if command {
+        return ClipboardRestoreOptions()
+      }
+
+      if option {
+        return ClipboardRestoreOptions(pasteAfterRestore: true, plainTextOnly: true)
+      }
+    } else {
+      if command && shift {
+        return ClipboardRestoreOptions(pasteAfterRestore: true, plainTextOnly: true)
+      }
+
+      if command {
+        return ClipboardRestoreOptions()
+      }
+
+      if option {
+        return ClipboardRestoreOptions(pasteAfterRestore: true)
+      }
+    }
+
+    return ClipboardRestoreOptions(
+      pasteAfterRestore: preferences.pasteAutomatically,
+      plainTextOnly: preferences.pasteAutomatically && preferences.pasteWithoutFormatting
+    )
+  }
+
+  private func handleHover(item: ClipboardItem, isHovering: Bool) {
+    if isHovering {
+      previewCloseTask?.cancel()
+      selectedItemID = item.id
+
+      guard !previewIsOpen else {
+        previewOpenTask?.cancel()
+        showPreviewIfPossible(for: item.id)
+        return
+      }
+
+      schedulePreviewOpen(for: item.id)
+    } else if selectedItemID == item.id {
+      previewOpenTask?.cancel()
+      schedulePreviewClose()
+    } else if !previewIsOpen {
+      previewOpenTask?.cancel()
     }
   }
 
-  private func clearHoveredItemAfterDelay(_ itemID: ClipboardItem.ID) {
-    Task { @MainActor in
-      try? await Task.sleep(for: .milliseconds(160))
+  private func schedulePreviewOpen(for itemID: ClipboardItem.ID) {
+    previewOpenTask?.cancel()
 
-      if hoveredItemID == itemID && !detailCardIsHovered {
-        hoveredItemID = nil
+    let delay = UInt64(min(max(preferences.previewDelayMilliseconds, 0), 250)) * 1_000_000
+    previewOpenTask = Task { @MainActor in
+      if delay > 0 {
+        try? await Task.sleep(nanoseconds: delay)
       }
+
+      guard !Task.isCancelled, selectedItemID == itemID else {
+        return
+      }
+
+      if !showPreviewIfPossible(for: itemID) {
+        try? await Task.sleep(nanoseconds: 75_000_000)
+
+        guard !Task.isCancelled, selectedItemID == itemID else {
+          return
+        }
+
+        _ = showPreviewIfPossible(for: itemID)
+      }
+    }
+  }
+
+  private func schedulePreviewClose() {
+    previewCloseTask?.cancel()
+    previewCloseTask = Task { @MainActor in
+      try? await Task.sleep(nanoseconds: 120_000_000)
+
+      guard !Task.isCancelled else {
+        return
+      }
+
+      closePreview()
+    }
+  }
+
+  private func closePreview() {
+    previewIsOpen = false
+    hidePreview()
+  }
+
+  @discardableResult
+  private func showPreviewIfPossible(for itemID: ClipboardItem.ID) -> Bool {
+    guard
+      let item = visibleItems.first(where: { $0.id == itemID }),
+      let rowRect = rowRects[itemID],
+      !rowRect.isEmpty
+    else {
+      return false
+    }
+
+    previewIsOpen = true
+    showPreview(item, rowRect)
+    return true
+  }
+
+  private func scheduleSearchFocus() {
+    searchFocusTask?.cancel()
+    searchFocusTask = Task { @MainActor in
+      try? await Task.sleep(nanoseconds: 75_000_000)
+
+      guard !Task.isCancelled else {
+        return
+      }
+
+      searchFocused = true
     }
   }
 
   private func syncSelectionWithVisibleItems() {
     guard !visibleItems.isEmpty else {
       selectedItemID = nil
-      hoveredItemID = nil
+      closePreview()
       return
-    }
-
-    if let hoveredItemID, !visibleItems.contains(where: { $0.id == hoveredItemID }) {
-      self.hoveredItemID = nil
     }
 
     guard
@@ -367,20 +515,39 @@ struct ClackPopoverView: View {
 
 private struct CompactClipboardRow: View {
   let item: ClipboardItem
+  let preferences: ClackPreferences
+  let searchText: String
   let shortcutNumber: Int?
   let isSelected: Bool
-  let restore: () -> Void
+  let restore: (NSEvent.ModifierFlags) -> Void
   let onHover: (Bool) -> Void
+  let onFrameChange: (NSRect) -> Void
 
   var body: some View {
-    Button(action: restore) {
+    Button {
+      restore(NSEvent.modifierFlagsForCurrentEvent)
+    } label: {
       HStack(spacing: 10) {
-        Text(rowPreview)
-          .font(.system(size: 13, weight: item.isPinned ? .semibold : .regular))
-          .foregroundStyle(.primary)
-          .lineLimit(1)
-          .truncationMode(.tail)
-          .frame(maxWidth: .infinity, alignment: .leading)
+        if item.imageData != nil {
+          ImageRowThumbnail(item: item, size: thumbnailSize)
+        } else if preferences.showApplicationIcons, let appIcon {
+          Image(nsImage: appIcon)
+            .resizable()
+            .scaledToFit()
+            .frame(width: 18, height: 18)
+            .accessibilityHidden(true)
+        }
+
+        if item.imageData == nil {
+          Text(highlightedPreview)
+            .font(.system(size: 13, weight: item.isPinned ? .semibold : .regular))
+            .foregroundStyle(.primary)
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+          Spacer(minLength: 0)
+        }
 
         if let shortcutNumber {
           Text("⌘\(shortcutNumber)")
@@ -392,8 +559,9 @@ private struct CompactClipboardRow: View {
       }
       .contentShape(Rectangle())
       .padding(.horizontal, 10)
-      .frame(height: 28)
+      .frame(height: rowHeight)
       .background(rowBackground)
+      .background(RowFrameReporter(onChange: onFrameChange))
     }
     .buttonStyle(.plain)
     .onHover(perform: onHover)
@@ -404,12 +572,116 @@ private struct CompactClipboardRow: View {
     .accessibilityAddTraits(isSelected ? .isSelected : [])
   }
 
+  private var rowHeight: CGFloat {
+    item.imageData == nil ? 28 : max(28, thumbnailSize + 6)
+  }
+
+  private var thumbnailSize: CGFloat {
+    min(max(CGFloat(preferences.imageHeight), 18), 64)
+  }
+
   private var rowPreview: String {
-    guard !item.preview.isEmpty else {
-      return item.kind.rawValue
+    let preview = preferences.showSpecialSymbols ? specialSymbolPreview : item.preview
+    return preview.isEmpty ? item.kind.rawValue : preview
+  }
+
+  private var specialSymbolPreview: String {
+    let source = item.kind == .text || item.kind == .richText ? item.content : item.preview
+    let marked = source
+      .replacingOccurrences(of: "\t", with: " ⇥ ")
+      .replacingOccurrences(of: "\n", with: " ↩ ")
+      .replacingOccurrences(of: "\r", with: " ↵ ")
+      .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+
+    guard marked.count > 140 else {
+      return marked
     }
 
-    return item.preview
+    return String(marked.prefix(137)) + "..."
+  }
+
+  private var highlightedPreview: AttributedString {
+    var attributed = AttributedString(rowPreview)
+
+    guard
+      preferences.highlightStyle != .none,
+      !searchText.isEmpty,
+      let range = highlightedRange(in: rowPreview, attributed: attributed)
+    else {
+      return attributed
+    }
+
+    switch preferences.highlightStyle {
+    case .bold:
+      attributed[range].inlinePresentationIntent = .stronglyEmphasized
+    case .underline:
+      attributed[range].underlineStyle = .single
+    case .none:
+      break
+    }
+
+    return attributed
+  }
+
+  private func highlightedRange(
+    in text: String,
+    attributed: AttributedString
+  ) -> Range<AttributedString.Index>? {
+    switch preferences.searchMode {
+    case .contains, .exact:
+      guard
+        let stringRange = text.range(
+          of: searchText,
+          options: [.caseInsensitive, .diacriticInsensitive]
+        )
+      else {
+        return nil
+      }
+
+      let lowerBound = AttributedString.Index(stringRange.lowerBound, within: attributed)
+      let upperBound = AttributedString.Index(stringRange.upperBound, within: attributed)
+
+      guard let lowerBound, let upperBound else {
+        return nil
+      }
+
+      return lowerBound..<upperBound
+    case .regularExpression:
+      guard
+        let expression = try? NSRegularExpression(pattern: searchText, options: [.caseInsensitive])
+      else {
+        return nil
+      }
+
+      let nsRange = NSRange(location: 0, length: (text as NSString).length)
+      guard
+        let match = expression.firstMatch(in: text, options: [], range: nsRange),
+        let stringRange = Range(match.range, in: text)
+      else {
+        return nil
+      }
+
+      let lowerBound = AttributedString.Index(stringRange.lowerBound, within: attributed)
+      let upperBound = AttributedString.Index(stringRange.upperBound, within: attributed)
+
+      guard let lowerBound, let upperBound else {
+        return nil
+      }
+
+      return lowerBound..<upperBound
+    }
+  }
+
+  private var appIcon: NSImage? {
+    guard
+      let bundleIdentifier = item.sourceBundleIdentifier,
+      let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier)
+    else {
+      return nil
+    }
+
+    return NSWorkspace.shared.icon(forFile: appURL.path)
   }
 
   private var accessibilityValue: String {
@@ -439,16 +711,48 @@ private struct CompactClipboardRow: View {
   }
 }
 
+private struct ImageRowThumbnail: View {
+  let item: ClipboardItem
+  let size: CGFloat
+
+  var body: some View {
+    Group {
+      if
+        let imageData = item.imageData,
+        let image = NSImage(data: imageData)
+      {
+        Image(nsImage: image)
+          .resizable()
+          .scaledToFill()
+      } else {
+        Image(systemName: "photo")
+          .font(.system(size: 11, weight: .medium))
+          .foregroundStyle(.secondary)
+      }
+    }
+    .frame(width: size, height: size)
+    .background(Color(nsColor: .controlBackgroundColor).opacity(0.7))
+    .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+    .overlay(
+      RoundedRectangle(cornerRadius: 4, style: .continuous)
+        .stroke(Color(nsColor: .separatorColor).opacity(0.55), lineWidth: 0.5)
+    )
+    .clipped()
+    .accessibilityHidden(true)
+  }
+}
+
 private struct HoverDetailCard: View {
   let item: ClipboardItem
 
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
       payloadPreview
-        .frame(maxWidth: .infinity, maxHeight: 230, alignment: .topLeading)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .frame(minHeight: 96, maxHeight: 170)
 
       Divider()
-        .padding(.vertical, 11)
+        .padding(.vertical, 12)
 
       VStack(alignment: .leading, spacing: 7) {
         DetailMetadataRow(title: "Application", value: item.sourceApp ?? "Unknown")
@@ -457,23 +761,17 @@ private struct HoverDetailCard: View {
         DetailMetadataRow(title: "Number of copies", value: "\(item.copyCount)")
       }
 
-      Spacer(minLength: 12)
-
-      VStack(alignment: .leading, spacing: 5) {
+      VStack(alignment: .leading, spacing: 4) {
         Text("Press ⌘P to \(item.isPinned ? "unpin" : "pin")")
         Text("Press ⌘⌫ to delete")
       }
       .font(.system(size: 12))
       .foregroundStyle(.secondary)
+      .padding(.top, 14)
     }
-    .padding(12)
-    .background(Color(nsColor: .windowBackgroundColor))
-    .clipShape(RoundedRectangle(cornerRadius: 10))
-    .overlay(
-      RoundedRectangle(cornerRadius: 10)
-        .stroke(Color(nsColor: .separatorColor).opacity(0.8), lineWidth: 1)
-    )
-    .shadow(color: .black.opacity(0.14), radius: 18, y: 8)
+    .padding(14)
+    .frame(maxWidth: .infinity, alignment: .topLeading)
+    .clipped()
     .accessibilityElement(children: .contain)
     .accessibilityLabel("Clipboard item details")
   }
@@ -482,56 +780,320 @@ private struct HoverDetailCard: View {
   private var payloadPreview: some View {
     switch item.kind {
     case .text, .richText:
-      ScrollView {
-        Text(item.content)
-          .font(.system(size: 12, design: .monospaced))
-          .foregroundStyle(.primary)
-          .textSelection(.enabled)
-          .frame(maxWidth: .infinity, alignment: .leading)
-          .padding(9)
-      }
-      .background(Color(nsColor: .textBackgroundColor))
-      .clipShape(RoundedRectangle(cornerRadius: 6))
+      PreviewTextScrollView(text: item.content)
+      .background(Color(nsColor: .textBackgroundColor).opacity(0.58))
+      .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
       .accessibilityLabel("Full clipboard content")
     case .file:
-      ScrollView {
-        VStack(alignment: .leading, spacing: 5) {
-          ForEach(item.fileURLs, id: \.self) { path in
-            Text(URL(fileURLWithPath: path).lastPathComponent)
-              .help(path)
-          }
-        }
-        .font(.system(size: 12, design: .monospaced))
-        .foregroundStyle(.primary)
-        .textSelection(.enabled)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(9)
-      }
-      .background(Color(nsColor: .textBackgroundColor))
-      .clipShape(RoundedRectangle(cornerRadius: 6))
-      .accessibilityLabel("Copied files")
-    case .image:
-      if
-        let imageData = item.imageData,
-        let image = NSImage(data: imageData)
-      {
-        Image(nsImage: image)
-          .resizable()
-          .scaledToFit()
-          .padding(8)
-          .frame(maxWidth: .infinity, maxHeight: .infinity)
-          .background(Color(nsColor: .textBackgroundColor))
-          .clipShape(RoundedRectangle(cornerRadius: 6))
-          .accessibilityLabel("Copied image preview")
+      if item.imageData != nil {
+        imagePreview
+          .accessibilityLabel("Copied image file preview")
       } else {
-        Text(item.detailText)
-          .font(.system(size: 12))
-          .foregroundStyle(.secondary)
-          .frame(maxWidth: .infinity, maxHeight: .infinity)
-          .background(Color(nsColor: .textBackgroundColor))
-          .clipShape(RoundedRectangle(cornerRadius: 6))
+        PreviewTextScrollView(text: filePreviewText)
+        .background(Color(nsColor: .textBackgroundColor).opacity(0.58))
+        .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+        .accessibilityLabel("Copied files")
+      }
+    case .image:
+      imagePreview
+        .accessibilityLabel("Copied image preview")
+    }
+  }
+
+  @ViewBuilder
+  private var imagePreview: some View {
+    if
+      let imageData = item.imageData,
+      let image = NSImage(data: imageData)
+    {
+      Image(nsImage: image)
+        .resizable()
+        .scaledToFit()
+        .padding(8)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(nsColor: .textBackgroundColor).opacity(0.58))
+        .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+    } else {
+      PreviewTextScrollView(text: item.detailText)
+        .background(Color(nsColor: .textBackgroundColor).opacity(0.58))
+        .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+    }
+  }
+
+  private var filePreviewText: String {
+    item.fileURLs
+      .map { URL(fileURLWithPath: $0).lastPathComponent }
+      .joined(separator: "\n")
+  }
+}
+
+private struct PreviewTextScrollView: NSViewRepresentable {
+  let text: String
+
+  func makeNSView(context: Context) -> NSScrollView {
+    let scrollView = NSScrollView()
+    scrollView.borderType = .noBorder
+    scrollView.drawsBackground = false
+    scrollView.wantsLayer = true
+    scrollView.layer?.masksToBounds = true
+    scrollView.hasVerticalScroller = true
+    scrollView.hasHorizontalScroller = false
+    scrollView.autohidesScrollers = true
+    scrollView.scrollerStyle = .overlay
+
+    let textView = NSTextView()
+    textView.drawsBackground = false
+    textView.isEditable = false
+    textView.isSelectable = true
+    textView.isRichText = false
+    textView.importsGraphics = false
+    textView.usesFontPanel = false
+    textView.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
+    textView.textColor = .labelColor
+    textView.textContainerInset = NSSize(width: 9, height: 9)
+    textView.textContainer?.lineFragmentPadding = 0
+    textView.textContainer?.lineBreakMode = .byCharWrapping
+    textView.textContainer?.widthTracksTextView = true
+    textView.isHorizontallyResizable = false
+    textView.isVerticallyResizable = true
+    textView.autoresizingMask = [.width]
+    textView.string = text
+
+    scrollView.documentView = textView
+    context.coordinator.textView = textView
+    return scrollView
+  }
+
+  func updateNSView(_ scrollView: NSScrollView, context: Context) {
+    guard let textView = context.coordinator.textView else {
+      return
+    }
+
+    textView.string = text
+    let contentWidth = max(scrollView.contentSize.width, 1)
+    textView.frame.size.width = contentWidth
+    textView.textContainer?.containerSize = NSSize(
+      width: contentWidth,
+      height: CGFloat.greatestFiniteMagnitude
+    )
+  }
+
+  func makeCoordinator() -> Coordinator {
+    Coordinator()
+  }
+
+  final class Coordinator {
+    weak var textView: NSTextView?
+  }
+}
+
+@MainActor
+final class ClackPreviewPopoverController {
+  private static let gap: CGFloat = 5
+  private static let previewSize = NSSize(width: 330, height: 300)
+
+  private var popover: NSPopover?
+  private var currentItemID: ClipboardItem.ID?
+  private var currentAnchorRect = NSRect.zero
+
+  func show(item: ClipboardItem, relativeTo rowRect: NSRect, of anchorView: NSView) {
+    guard !rowRect.isEmpty else {
+      return
+    }
+
+    if
+      currentItemID == item.id,
+      popover?.isShown == true,
+      rowRect.nearlyEquals(currentAnchorRect)
+    {
+      return
+    }
+
+    close()
+
+    let popover = NSPopover()
+    popover.animates = false
+    popover.behavior = .semitransient
+    popover.contentSize = Self.previewSize
+    popover.contentViewController = NSHostingController(
+      rootView: HoverDetailCard(item: item)
+        .frame(width: Self.previewSize.width, height: Self.previewSize.height)
+    )
+
+    let edge = preferredEdge(for: rowRect, in: anchorView)
+    popover.show(relativeTo: rowRect, of: anchorView, preferredEdge: edge)
+    self.popover = popover
+    currentItemID = item.id
+    currentAnchorRect = rowRect
+
+    applyGap(from: anchorView, edge: edge, to: popover)
+  }
+
+  func close() {
+    popover?.close()
+    popover = nil
+    currentItemID = nil
+    currentAnchorRect = .zero
+  }
+
+  private func preferredEdge(for rowRect: NSRect, in anchorView: NSView) -> NSRectEdge {
+    guard
+      let window = anchorView.window,
+      let screen = window.screen?.visibleFrame ?? NSScreen.main?.visibleFrame
+    else {
+      return .minX
+    }
+
+    let windowRect = anchorView.convert(rowRect, to: nil)
+    let screenRect = window.convertToScreen(windowRect)
+    let roomLeft = screenRect.minX - screen.minX
+    let roomRight = screen.maxX - screenRect.maxX
+
+    if roomLeft >= Self.previewSize.width + Self.gap || roomLeft >= roomRight {
+      return .minX
+    }
+
+    return .maxX
+  }
+
+  private func applyGap(from anchorView: NSView, edge: NSRectEdge, to popover: NSPopover) {
+    guard
+      let panelFrame = anchorView.window?.frame,
+      let popoverWindow = popover.contentViewController?.view.window
+    else {
+      return
+    }
+
+    if popoverWindow.frame.maxX <= panelFrame.minX {
+      popoverWindow.setFrameOrigin(
+        NSPoint(x: popoverWindow.frame.minX - Self.gap, y: popoverWindow.frame.minY)
+      )
+    } else if popoverWindow.frame.minX >= panelFrame.maxX {
+      popoverWindow.setFrameOrigin(
+        NSPoint(x: popoverWindow.frame.minX + Self.gap, y: popoverWindow.frame.minY)
+      )
+    } else if edge == .minX {
+      popoverWindow.setFrameOrigin(
+        NSPoint(x: popoverWindow.frame.minX - Self.gap, y: popoverWindow.frame.minY)
+      )
+    } else if edge == .maxX {
+      popoverWindow.setFrameOrigin(
+        NSPoint(x: popoverWindow.frame.minX + Self.gap, y: popoverWindow.frame.minY)
+      )
+    }
+  }
+}
+
+private extension NSRect {
+  func nearlyEquals(_ other: NSRect) -> Bool {
+    abs(origin.x - other.origin.x) < 0.5
+      && abs(origin.y - other.origin.y) < 0.5
+      && abs(size.width - other.size.width) < 0.5
+      && abs(size.height - other.size.height) < 0.5
+  }
+}
+
+private struct RowFrameReporter: NSViewRepresentable {
+  let onChange: (NSRect) -> Void
+
+  func makeNSView(context: Context) -> ReportingView {
+    ReportingView(onChange: onChange)
+  }
+
+  func updateNSView(_ nsView: ReportingView, context: Context) {
+    nsView.onChange = onChange
+    nsView.reportFrame()
+  }
+
+  final class ReportingView: NSView {
+    var onChange: (NSRect) -> Void
+    private var lastRect = NSRect.zero
+
+    init(onChange: @escaping (NSRect) -> Void) {
+      self.onChange = onChange
+      super.init(frame: .zero)
+    }
+
+    required init?(coder: NSCoder) {
+      fatalError("init(coder:) has not been implemented")
+    }
+
+    override func viewDidMoveToWindow() {
+      super.viewDidMoveToWindow()
+      reportFrame()
+    }
+
+    override func setFrameSize(_ newSize: NSSize) {
+      super.setFrameSize(newSize)
+      reportFrame()
+    }
+
+    func reportFrame() {
+      DispatchQueue.main.async { [weak self] in
+        guard
+          let self,
+          let contentView = window?.contentView
+        else {
+          return
+        }
+
+        let rect = convert(bounds, to: contentView)
+        guard rect != lastRect else {
+          return
+        }
+
+        lastRect = rect
+        onChange(rect)
       }
     }
+  }
+}
+
+private struct ClackPanelMaterial: NSViewRepresentable {
+  func makeNSView(context: Context) -> NSVisualEffectView {
+    let view = NSVisualEffectView()
+    view.material = .popover
+    view.blendingMode = .behindWindow
+    view.state = .active
+    return view
+  }
+
+  func updateNSView(_ view: NSVisualEffectView, context: Context) {
+    view.material = .popover
+    view.blendingMode = .behindWindow
+    view.state = .active
+  }
+}
+
+private struct ClackTemplateIcon: View {
+  let size: CGFloat
+
+  var body: some View {
+    if let image = Self.templateImage(size: size) {
+      Image(nsImage: image)
+        .renderingMode(.template)
+        .resizable()
+        .scaledToFit()
+        .frame(width: size, height: size)
+    } else {
+      Image(systemName: "doc.on.clipboard")
+        .font(.system(size: size - 2, weight: .medium))
+        .frame(width: size, height: size)
+    }
+  }
+
+  private static func templateImage(size: CGFloat) -> NSImage? {
+    guard
+      let url = Bundle.main.url(forResource: "ClackMenuBarTemplate", withExtension: "png"),
+      let image = NSImage(contentsOf: url)?.copy() as? NSImage
+    else {
+      return nil
+    }
+
+    image.isTemplate = true
+    image.size = NSSize(width: size, height: size)
+    image.accessibilityDescription = "Clack"
+    return image
   }
 }
 
@@ -602,18 +1164,57 @@ private enum SelectionDirection {
   case down
 }
 
+private extension NSEvent {
+  static var modifierFlagsForCurrentEvent: NSEvent.ModifierFlags {
+    NSApp.currentEvent?.modifierFlags ?? NSEvent.modifierFlags
+  }
+
+  func matches(_ shortcut: ClackKeyboardShortcut) -> Bool {
+    keyCode == UInt16(shortcut.keyCode)
+      && modifierFlags.abstractShortcutModifiers == shortcut.modifiers
+  }
+}
+
+private extension NSEvent.ModifierFlags {
+  var abstractShortcutModifiers: Int {
+    var result = 0
+
+    if contains(.command) {
+      result |= ClackKeyboardShortcut.command
+    }
+
+    if contains(.shift) {
+      result |= ClackKeyboardShortcut.shift
+    }
+
+    if contains(.option) {
+      result |= ClackKeyboardShortcut.option
+    }
+
+    if contains(.control) {
+      result |= ClackKeyboardShortcut.control
+    }
+
+    return result
+  }
+}
+
 private struct KeyboardNavigationMonitor: NSViewRepresentable {
   let moveSelection: (SelectionDirection) -> Void
   let restoreSelection: () -> Void
   let togglePinSelection: () -> Void
   let deleteSelection: () -> Void
+  let pinShortcut: ClackKeyboardShortcut
+  let deleteShortcut: ClackKeyboardShortcut
 
   func makeCoordinator() -> Coordinator {
     Coordinator(
       moveSelection: moveSelection,
       restoreSelection: restoreSelection,
       togglePinSelection: togglePinSelection,
-      deleteSelection: deleteSelection
+      deleteSelection: deleteSelection,
+      pinShortcut: pinShortcut,
+      deleteShortcut: deleteShortcut
     )
   }
 
@@ -629,6 +1230,8 @@ private struct KeyboardNavigationMonitor: NSViewRepresentable {
     context.coordinator.restoreSelection = restoreSelection
     context.coordinator.togglePinSelection = togglePinSelection
     context.coordinator.deleteSelection = deleteSelection
+    context.coordinator.pinShortcut = pinShortcut
+    context.coordinator.deleteShortcut = deleteShortcut
   }
 
   static func dismantleNSView(_ nsView: NSView, coordinator: Coordinator) {
@@ -641,18 +1244,24 @@ private struct KeyboardNavigationMonitor: NSViewRepresentable {
     var restoreSelection: () -> Void
     var togglePinSelection: () -> Void
     var deleteSelection: () -> Void
+    var pinShortcut: ClackKeyboardShortcut
+    var deleteShortcut: ClackKeyboardShortcut
     private var monitor: Any?
 
     init(
       moveSelection: @escaping (SelectionDirection) -> Void,
       restoreSelection: @escaping () -> Void,
       togglePinSelection: @escaping () -> Void,
-      deleteSelection: @escaping () -> Void
+      deleteSelection: @escaping () -> Void,
+      pinShortcut: ClackKeyboardShortcut,
+      deleteShortcut: ClackKeyboardShortcut
     ) {
       self.moveSelection = moveSelection
       self.restoreSelection = restoreSelection
       self.togglePinSelection = togglePinSelection
       self.deleteSelection = deleteSelection
+      self.pinShortcut = pinShortcut
+      self.deleteShortcut = deleteShortcut
     }
 
     func start() {
@@ -681,12 +1290,12 @@ private struct KeyboardNavigationMonitor: NSViewRepresentable {
 
       let modifiers = event.modifierFlags.intersection([.command, .shift, .option, .control])
 
-      if modifiers == [.command], event.keyCode == 35 {
+      if event.matches(pinShortcut) {
         togglePinSelection()
         return nil
       }
 
-      if modifiers == [.command], event.keyCode == 51 || event.keyCode == 117 {
+      if event.matches(deleteShortcut) || modifiers == [.command] && event.keyCode == 117 {
         deleteSelection()
         return nil
       }

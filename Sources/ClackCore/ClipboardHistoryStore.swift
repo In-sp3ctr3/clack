@@ -3,7 +3,7 @@ import Foundation
 
 @MainActor
 public final class ClipboardHistoryStore: ObservableObject {
-  nonisolated public static let defaultLimit = 500
+  nonisolated public static let defaultLimit = 200
   nonisolated public static let minimumLimit = 1
   nonisolated public static let maximumLimit = 5_000
 
@@ -178,6 +178,20 @@ public final class ClipboardHistoryStore: ObservableObject {
     }
 
     items[index].isPinned.toggle()
+    sortItems()
+    trimToLimit()
+    save()
+  }
+
+  public func markRestored(_ itemID: ClipboardItem.ID, at date: Date = Date()) {
+    guard let index = items.firstIndex(where: { $0.id == itemID }) else {
+      return
+    }
+
+    var item = items.remove(at: index)
+    item.copyCount += 1
+    item.lastCopiedAt = date
+    items.append(item)
     sortItems()
     trimToLimit()
     save()

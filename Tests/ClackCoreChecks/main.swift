@@ -18,12 +18,15 @@ struct ClackCoreChecks {
     let checks: [Check] = [
       Check(name: "recording a copy adds a new item", run: testRecordCopyAddsNewItem),
       Check(name: "duplicate copies update the existing item", run: testDuplicateCopyUpdatesExistingItem),
+      Check(name: "restored items move to newest position", run: testRestoredItemsMoveToNewestPosition),
       Check(name: "history limit prunes old unpinned items", run: testHistoryLimitPrunesOldUnpinnedItems),
       Check(name: "pinned items survive limit and clear", run: testPinnedItemsSurviveLimitAndClear),
       Check(name: "search matches content and source app", run: testSearchMatchesContentAndSourceApp),
+      Check(name: "search supports exact and regex modes", run: testSearchSupportsExactAndRegexModes),
       Check(name: "formatted text stores rich representations", run: testFormattedTextStoresRichRepresentations),
       Check(name: "source confidence persists and updates", run: testSourceConfidencePersistsAndUpdates),
       Check(name: "file copies store URLs and deduplicate", run: testFileCopiesStoreURLsAndDeduplicate),
+      Check(name: "image file copies keep preview image data", run: testImageFileCopiesKeepPreviewImageData),
       Check(name: "image copies store data and metadata", run: testImageCopiesStoreDataAndMetadata),
       Check(name: "persistence loads and saves items", run: testPersistenceLoadsAndSavesItems),
       Check(name: "legacy text history decodes with defaults", run: testLegacyTextHistoryDecodesWithDefaults),
@@ -138,6 +141,22 @@ struct ClackCoreChecks {
   }
 
   @MainActor
+  private static func testSearchSupportsExactAndRegexModes() throws {
+    let item = ClipboardItem(
+      content: "invoice 1042",
+      sourceApp: "Preview",
+      firstCopiedAt: Date(timeIntervalSince1970: 100),
+      lastCopiedAt: Date(timeIntervalSince1970: 100)
+    )
+
+    try expect(item.matches("invoice", mode: .contains), "expected contains search to match substring")
+    try expect(!item.matches("invoice", mode: .exact), "expected exact search to reject substring")
+    try expect(item.matches("invoice 1042", mode: .exact), "expected exact search to match full value")
+    try expect(item.matches("invoice \\d+", mode: .regularExpression), "expected regex search to match")
+    try expect(!item.matches("[", mode: .regularExpression), "expected invalid regex to fail closed")
+  }
+
+  @MainActor
   private static func testDuplicateCopyUpdatesExistingItem() throws {
     let store = ClipboardHistoryStore(maxStoredItems: 10, loadSavedItems: false)
     let firstDate = Date(timeIntervalSince1970: 100)
@@ -151,6 +170,23 @@ struct ClackCoreChecks {
     try expect(store.items.first?.firstCopiedAt == firstDate, "expected first copy date to remain stable")
     try expect(store.items.first?.lastCopiedAt == secondDate, "expected last copy date to update")
     try expect(store.items.first?.sourceApp == "Mail", "expected latest source app to update")
+  }
+
+  @MainActor
+  private static func testRestoredItemsMoveToNewestPosition() throws {
+    let store = ClipboardHistoryStore(maxStoredItems: 10, loadSavedItems: false)
+
+    guard let first = store.recordCopy("first", at: Date(timeIntervalSince1970: 100)) else {
+      throw CheckFailure(description: "expected first item")
+    }
+
+    store.recordCopy("second", at: Date(timeIntervalSince1970: 200))
+    store.markRestored(first.id, at: Date(timeIntervalSince1970: 300))
+
+    try expect(store.items.map(\.content) == ["first", "second"], "expected restored item to move to top")
+    try expect(store.items.first?.copyCount == 2, "expected restore to increment copy count")
+    try expect(store.items.first?.firstCopiedAt == Date(timeIntervalSince1970: 100), "expected first copy date to remain")
+    try expect(store.items.first?.lastCopiedAt == Date(timeIntervalSince1970: 300), "expected restored date to be latest")
   }
 
   @MainActor
@@ -230,6 +266,47 @@ struct ClackCoreChecks {
 
     store.searchText = "Invoice.pdf"
     try expect(store.filteredItems.count == 1, "expected file name search match")
+  }
+
+  @MainActor
+  private static func testImageFileCopiesKeepPreviewImageData() throws {
+    let store = ClipboardHistoryStore(maxStoredItems: 10, loadSavedItems: false)
+    let firstImageData = Data([0x89, 0x50, 0x4E, 0x47])
+    let secondImageData = Data([0x89, 0x50, 0x4E, 0x47, 0x01])
+    let fileURL = "/Users/example/Desktop/Screenshot.png"
+
+    store.recordItem(
+      kind: .file,
+      content: "Screenshot.png",
+      sourceApp: "Finder",
+      pasteboardTypes: ["public.file-url"],
+      fileURLs: [fileURL],
+      imageData: firstImageData,
+      imageContentType: "public.png",
+      imagePixelWidth: 1440,
+      imagePixelHeight: 900,
+      at: Date(timeIntervalSince1970: 100)
+    )
+    store.recordItem(
+      kind: .file,
+      content: "Screenshot.png",
+      sourceApp: "Finder",
+      pasteboardTypes: ["public.file-url"],
+      fileURLs: [fileURL],
+      imageData: secondImageData,
+      imageContentType: "public.png",
+      imagePixelWidth: 1600,
+      imagePixelHeight: 1000,
+      at: Date(timeIntervalSince1970: 200)
+    )
+
+    let item = try require(store.items.first, "expected image file item")
+    try expect(item.kind == .file, "expected Finder image copy to keep file semantics")
+    try expect(item.fileURLs == [fileURL], "expected file URL to remain available")
+    try expect(item.imageData == secondImageData, "expected image preview data to update")
+    try expect(item.imageContentType == "public.png", "expected image preview content type")
+    try expect(item.imageSizeDescription == "1600x1000", "expected image preview dimensions")
+    try expect(item.copyCount == 2, "expected duplicate image file copy count")
   }
 
   @MainActor
@@ -333,11 +410,16 @@ struct ClackCoreChecks {
     preferences.saveText = false
     preferences.saveFiles = true
     preferences.saveImages = true
+    preferences.pasteAutomatically = true
+    preferences.pasteWithoutFormatting = true
     preferences.sortMode = .content
     preferences.searchMode = .exact
+    preferences.openShortcut = ClackKeyboardShortcut(keyCode: 9, character: "V", modifiers: ClackKeyboardShortcut.command)
     preferences.showFooter = false
     preferences.addIgnoredApplication("Safari")
     preferences.addIgnoredApplication("Safari")
+    preferences.addIgnoredPasteboardType("public.png")
+    preferences.resetIgnoredPasteboardTypes()
     preferences.addIgnoredRegularExpression("token_[a-z]+")
     preferences.temporarilyIgnoreNewCopies = true
 
@@ -347,10 +429,17 @@ struct ClackCoreChecks {
     try expect(reloadedPreferences.saveText == false, "expected save text setting to persist")
     try expect(reloadedPreferences.saveFiles, "expected save files setting to persist")
     try expect(reloadedPreferences.saveImages, "expected save images setting to persist")
+    try expect(reloadedPreferences.pasteAutomatically, "expected paste automatically setting to persist")
+    try expect(reloadedPreferences.pasteWithoutFormatting, "expected paste formatting setting to persist")
     try expect(reloadedPreferences.sortMode == .content, "expected sort mode to persist")
     try expect(reloadedPreferences.searchMode == .exact, "expected search mode to persist")
+    try expect(reloadedPreferences.openShortcut.display == "⌘V", "expected open shortcut to persist")
     try expect(reloadedPreferences.showFooter == false, "expected footer setting to persist")
     try expect(reloadedPreferences.ignoredApplications == ["Safari"], "expected ignored app list to stay unique")
+    try expect(
+      reloadedPreferences.ignoredPasteboardTypes == ClackPreferences.defaultIgnoredPasteboardTypes,
+      "expected ignored pasteboard types to reset to defaults"
+    )
     try expect(reloadedPreferences.ignoredRegularExpressions == ["token_[a-z]+"], "expected ignored regex to persist")
     try expect(reloadedPreferences.temporarilyIgnoreNewCopies, "expected ignore toggle to persist")
   }

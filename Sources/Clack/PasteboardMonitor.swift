@@ -1,5 +1,6 @@
 import AppKit
 import ClackCore
+import UniformTypeIdentifiers
 
 @MainActor
 final class PasteboardMonitor {
@@ -166,11 +167,16 @@ final class PasteboardMonitor {
     let fileNames = filePaths.map { path in
       URL(fileURLWithPath: path).lastPathComponent
     }
+    let previewImage = preferences.saveImages ? imagePreview(for: filePaths) : nil
 
     return PasteboardPayload(
       kind: .file,
       content: fileNames.joined(separator: "\n"),
-      fileURLs: filePaths
+      fileURLs: filePaths,
+      imageData: previewImage?.data,
+      imageContentType: previewImage?.contentType,
+      imagePixelWidth: previewImage?.pixelWidth,
+      imagePixelHeight: previewImage?.pixelHeight
     )
   }
 
@@ -179,6 +185,48 @@ final class PasteboardMonitor {
       return nil
     }
 
+    guard let encodedImage = encodedPNG(from: image) else {
+      return nil
+    }
+
+    return PasteboardPayload(
+      kind: .image,
+      content: "Image",
+      imageData: encodedImage.data,
+      imageContentType: encodedImage.contentType,
+      imagePixelWidth: encodedImage.pixelWidth,
+      imagePixelHeight: encodedImage.pixelHeight
+    )
+  }
+
+  private func imagePreview(for filePaths: [String]) -> EncodedImage? {
+    for filePath in filePaths {
+      let url = URL(fileURLWithPath: filePath)
+
+      guard isImageFile(url), let image = NSImage(contentsOf: url) else {
+        continue
+      }
+
+      if let encodedImage = encodedPNG(from: image) {
+        return encodedImage
+      }
+    }
+
+    return nil
+  }
+
+  private func isImageFile(_ url: URL) -> Bool {
+    guard
+      let type = UTType(filenameExtension: url.pathExtension),
+      type.conforms(to: .image)
+    else {
+      return false
+    }
+
+    return true
+  }
+
+  private func encodedPNG(from image: NSImage) -> EncodedImage? {
     guard
       let tiffData = image.tiffRepresentation,
       let bitmap = NSBitmapImageRep(data: tiffData),
@@ -187,13 +235,11 @@ final class PasteboardMonitor {
       return nil
     }
 
-    return PasteboardPayload(
-      kind: .image,
-      content: "Image",
-      imageData: imageData,
-      imageContentType: "public.png",
-      imagePixelWidth: bitmap.pixelsWide,
-      imagePixelHeight: bitmap.pixelsHigh
+    return EncodedImage(
+      data: imageData,
+      contentType: "public.png",
+      pixelWidth: bitmap.pixelsWide,
+      pixelHeight: bitmap.pixelsHigh
     )
   }
 
@@ -422,6 +468,13 @@ private struct PasteboardPayload {
       (fileURLs + [content]).joined(separator: "\n")
     }
   }
+}
+
+private struct EncodedImage {
+  var data: Data
+  var contentType: String
+  var pixelWidth: Int
+  var pixelHeight: Int
 }
 
 private let richTextPasteboardTypes: [NSPasteboard.PasteboardType] = [

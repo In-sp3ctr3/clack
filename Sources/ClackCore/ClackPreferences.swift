@@ -4,8 +4,64 @@ import Foundation
 public enum SearchMode: String, CaseIterable, Hashable, Identifiable {
   case contains = "Contains"
   case exact = "Exact"
+  case regularExpression = "Regular expression"
 
   public var id: String { rawValue }
+}
+
+public struct ClackKeyboardShortcut: Codable, Hashable, Sendable {
+  public static let command = 1
+  public static let shift = 2
+  public static let option = 4
+  public static let control = 8
+
+  public var keyCode: Int
+  public var character: String
+  public var modifiers: Int
+
+  public init(keyCode: Int, character: String, modifiers: Int) {
+    self.keyCode = keyCode
+    self.character = character
+    self.modifiers = modifiers
+  }
+
+  public static let openDefault = ClackKeyboardShortcut(
+    keyCode: 8,
+    character: "C",
+    modifiers: command | shift
+  )
+  public static let pinDefault = ClackKeyboardShortcut(
+    keyCode: 35,
+    character: "P",
+    modifiers: command
+  )
+  public static let deleteDefault = ClackKeyboardShortcut(
+    keyCode: 51,
+    character: "⌫",
+    modifiers: command
+  )
+
+  public var display: String {
+    var result = ""
+
+    if modifiers & Self.control != 0 {
+      result += "⌃"
+    }
+
+    if modifiers & Self.option != 0 {
+      result += "⌥"
+    }
+
+    if modifiers & Self.shift != 0 {
+      result += "⇧"
+    }
+
+    if modifiers & Self.command != 0 {
+      result += "⌘"
+    }
+
+    return result + character.uppercased()
+  }
 }
 
 public enum SortMode: String, CaseIterable, Hashable, Identifiable {
@@ -19,8 +75,10 @@ public enum SortMode: String, CaseIterable, Hashable, Identifiable {
 
 public enum PopupLocation: String, CaseIterable, Hashable, Identifiable {
   case cursor = "Cursor"
-  case menuBar = "Menu bar"
+  case menuIcon = "Menu icon"
+  case windowCenter = "Window center"
   case center = "Screen center"
+  case lastPosition = "Last position"
 
   public var id: String { rawValue }
 }
@@ -57,6 +115,8 @@ public final class ClackPreferences: ObservableObject {
     static let saveFiles = "saveFiles"
     static let saveImages = "saveImages"
     static let saveText = "saveText"
+    static let pasteAutomatically = "pasteAutomatically"
+    static let pasteWithoutFormatting = "pasteWithoutFormatting"
     static let searchMode = "searchMode"
     static let sortMode = "sortMode"
     static let popupLocation = "popupLocation"
@@ -79,6 +139,9 @@ public final class ClackPreferences: ObservableObject {
     static let ignoreOnlyNextCopy = "ignoreOnlyNextCopy"
     static let clearHistoryOnQuit = "clearHistoryOnQuit"
     static let clearSystemClipboardOnQuit = "clearSystemClipboardOnQuit"
+    static let openShortcut = "openShortcut"
+    static let pinShortcut = "pinShortcut"
+    static let deleteShortcut = "deleteShortcut"
   }
 
   @Published public private(set) var historyLimit: Int
@@ -87,6 +150,8 @@ public final class ClackPreferences: ObservableObject {
   @Published public var saveFiles: Bool { didSet { defaults.set(saveFiles, forKey: Keys.saveFiles) } }
   @Published public var saveImages: Bool { didSet { defaults.set(saveImages, forKey: Keys.saveImages) } }
   @Published public var saveText: Bool { didSet { defaults.set(saveText, forKey: Keys.saveText) } }
+  @Published public var pasteAutomatically: Bool { didSet { defaults.set(pasteAutomatically, forKey: Keys.pasteAutomatically) } }
+  @Published public var pasteWithoutFormatting: Bool { didSet { defaults.set(pasteWithoutFormatting, forKey: Keys.pasteWithoutFormatting) } }
   @Published public var searchMode: SearchMode { didSet { defaults.set(searchMode.rawValue, forKey: Keys.searchMode) } }
   @Published public var sortMode: SortMode { didSet { defaults.set(sortMode.rawValue, forKey: Keys.sortMode) } }
   @Published public var popupLocation: PopupLocation { didSet { defaults.set(popupLocation.rawValue, forKey: Keys.popupLocation) } }
@@ -109,8 +174,20 @@ public final class ClackPreferences: ObservableObject {
   @Published public var ignoreOnlyNextCopy: Bool { didSet { defaults.set(ignoreOnlyNextCopy, forKey: Keys.ignoreOnlyNextCopy) } }
   @Published public var clearHistoryOnQuit: Bool { didSet { defaults.set(clearHistoryOnQuit, forKey: Keys.clearHistoryOnQuit) } }
   @Published public var clearSystemClipboardOnQuit: Bool { didSet { defaults.set(clearSystemClipboardOnQuit, forKey: Keys.clearSystemClipboardOnQuit) } }
+  @Published public var openShortcut: ClackKeyboardShortcut { didSet { setShortcut(openShortcut, forKey: Keys.openShortcut) } }
+  @Published public var pinShortcut: ClackKeyboardShortcut { didSet { setShortcut(pinShortcut, forKey: Keys.pinShortcut) } }
+  @Published public var deleteShortcut: ClackKeyboardShortcut { didSet { setShortcut(deleteShortcut, forKey: Keys.deleteShortcut) } }
 
   private let defaults: UserDefaults
+
+  public static let defaultIgnoredPasteboardTypes = [
+    "Pasteboard generator type",
+    "com.agilebits.onepassword",
+    "com.typeit4me.clipping",
+    "de.petermaurer.TransientPasteboardType",
+    "net.antelle.keeweb",
+    "org.nspasteboard.TransientType"
+  ]
 
   public init(defaults: UserDefaults = .standard) {
     self.defaults = defaults
@@ -120,12 +197,14 @@ public final class ClackPreferences: ObservableObject {
     self.saveFiles = Self.bool(defaults, key: Keys.saveFiles, defaultValue: true)
     self.saveImages = Self.bool(defaults, key: Keys.saveImages, defaultValue: true)
     self.saveText = Self.bool(defaults, key: Keys.saveText, defaultValue: true)
+    self.pasteAutomatically = Self.bool(defaults, key: Keys.pasteAutomatically, defaultValue: false)
+    self.pasteWithoutFormatting = Self.bool(defaults, key: Keys.pasteWithoutFormatting, defaultValue: false)
     self.searchMode = Self.enumeration(defaults, key: Keys.searchMode, defaultValue: .contains)
     self.sortMode = Self.enumeration(defaults, key: Keys.sortMode, defaultValue: .lastCopied)
     self.popupLocation = Self.enumeration(defaults, key: Keys.popupLocation, defaultValue: .cursor)
     self.pinLocation = Self.enumeration(defaults, key: Keys.pinLocation, defaultValue: .top)
     self.imageHeight = Self.integer(defaults, key: Keys.imageHeight, defaultValue: 40)
-    self.previewDelayMilliseconds = Self.integer(defaults, key: Keys.previewDelayMilliseconds, defaultValue: 1_500)
+    self.previewDelayMilliseconds = Self.integer(defaults, key: Keys.previewDelayMilliseconds, defaultValue: 250)
     self.highlightStyle = Self.enumeration(defaults, key: Keys.highlightStyle, defaultValue: .bold)
     self.showSpecialSymbols = Self.bool(defaults, key: Keys.showSpecialSymbols, defaultValue: true)
     self.showMenuIcon = Self.bool(defaults, key: Keys.showMenuIcon, defaultValue: true)
@@ -136,12 +215,18 @@ public final class ClackPreferences: ObservableObject {
     self.showFooter = Self.bool(defaults, key: Keys.showFooter, defaultValue: true)
     self.ignoredApplications = defaults.stringArray(forKey: Keys.ignoredApplications) ?? []
     self.ignoreAllApplicationsExceptListed = Self.bool(defaults, key: Keys.ignoreAllApplicationsExceptListed, defaultValue: false)
-    self.ignoredPasteboardTypes = defaults.stringArray(forKey: Keys.ignoredPasteboardTypes) ?? []
+    let storedIgnoredPasteboardTypes = defaults.stringArray(forKey: Keys.ignoredPasteboardTypes)
+    self.ignoredPasteboardTypes = storedIgnoredPasteboardTypes?.isEmpty == false
+      ? storedIgnoredPasteboardTypes ?? Self.defaultIgnoredPasteboardTypes
+      : Self.defaultIgnoredPasteboardTypes
     self.ignoredRegularExpressions = defaults.stringArray(forKey: Keys.ignoredRegularExpressions) ?? []
     self.temporarilyIgnoreNewCopies = Self.bool(defaults, key: Keys.temporarilyIgnoreNewCopies, defaultValue: false)
     self.ignoreOnlyNextCopy = Self.bool(defaults, key: Keys.ignoreOnlyNextCopy, defaultValue: false)
     self.clearHistoryOnQuit = Self.bool(defaults, key: Keys.clearHistoryOnQuit, defaultValue: false)
     self.clearSystemClipboardOnQuit = Self.bool(defaults, key: Keys.clearSystemClipboardOnQuit, defaultValue: false)
+    self.openShortcut = Self.shortcut(defaults, key: Keys.openShortcut, defaultValue: .openDefault)
+    self.pinShortcut = Self.shortcut(defaults, key: Keys.pinShortcut, defaultValue: .pinDefault)
+    self.deleteShortcut = Self.shortcut(defaults, key: Keys.deleteShortcut, defaultValue: .deleteDefault)
 
     self.historyLimit = ClipboardHistoryStore.clampedLimit(historyLimit)
   }
@@ -169,6 +254,10 @@ public final class ClackPreferences: ObservableObject {
     remove(id: id, from: \.ignoredApplications)
   }
 
+  public func resetIgnoredApplications() {
+    ignoredApplications = []
+  }
+
   public func addIgnoredPasteboardType(_ value: String) {
     appendCleaned(value, to: \.ignoredPasteboardTypes)
   }
@@ -181,6 +270,10 @@ public final class ClackPreferences: ObservableObject {
     remove(id: id, from: \.ignoredPasteboardTypes)
   }
 
+  public func resetIgnoredPasteboardTypes() {
+    ignoredPasteboardTypes = Self.defaultIgnoredPasteboardTypes
+  }
+
   public func addIgnoredRegularExpression(_ value: String) {
     appendCleaned(value, to: \.ignoredRegularExpressions)
   }
@@ -191,6 +284,16 @@ public final class ClackPreferences: ObservableObject {
 
   public func removeIgnoredRegularExpression(id: String) {
     remove(id: id, from: \.ignoredRegularExpressions)
+  }
+
+  public func resetIgnoredRegularExpressions() {
+    ignoredRegularExpressions = []
+  }
+
+  public func resetShortcuts() {
+    openShortcut = .openDefault
+    pinShortcut = .pinDefault
+    deleteShortcut = .deleteDefault
   }
 
   public func refreshRuntimeControls() {
@@ -299,5 +402,28 @@ public final class ClackPreferences: ObservableObject {
     }
 
     return result
+  }
+
+  private func setShortcut(_ shortcut: ClackKeyboardShortcut, forKey key: String) {
+    guard let data = try? JSONEncoder().encode(shortcut) else {
+      return
+    }
+
+    defaults.set(data, forKey: key)
+  }
+
+  private static func shortcut(
+    _ defaults: UserDefaults,
+    key: String,
+    defaultValue: ClackKeyboardShortcut
+  ) -> ClackKeyboardShortcut {
+    guard
+      let data = defaults.data(forKey: key),
+      let shortcut = try? JSONDecoder().decode(ClackKeyboardShortcut.self, from: data)
+    else {
+      return defaultValue
+    }
+
+    return shortcut
   }
 }

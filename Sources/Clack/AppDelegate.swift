@@ -7,11 +7,13 @@ import SwiftUI
 final class AppDelegate: NSObject, NSApplicationDelegate {
   private let preferences: ClackPreferences
   private let store: ClipboardHistoryStore
-  private let popover = NSPopover()
 
   private var monitor: PasteboardMonitor?
   private var globalHotKeys: GlobalHotKeyController?
   private var statusItem: NSStatusItem?
+  private var panel: ClackFloatingPanel?
+  private let previewPopover = ClackPreviewPopoverController()
+  private var suppressPanelOpenUntil: Date?
   private var preferencesWindowController: NSWindowController?
   private var cancellables: Set<AnyCancellable> = []
 
@@ -28,7 +30,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     configureStatusItem()
-    configurePopover()
     configureGlobalHotKeys()
     observePreferences()
 
@@ -72,6 +73,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task { @MainActor in
           self?.updateStatusItem()
         }
+      }
+      .store(in: &cancellables)
+
+    preferences.$openShortcut
+      .sink { [weak self] shortcut in
+        self?.globalHotKeys?.update(shortcut: shortcut)
       }
       .store(in: &cancellables)
 
@@ -119,10 +126,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     return image
   }
 
-  private func configurePopover() {
+  private func makeClipboardActions() -> ClipboardActions {
     let actions = ClipboardActions(
-      restore: { [weak self] item in
-        self?.restore(item)
+      restore: { [weak self] item, options in
+        self?.restore(item, options: options)
       },
       togglePin: { [weak self] item in
         self?.store.togglePin(item.id)
@@ -134,9 +141,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self?.store.clearUnpinned()
       },
       showPreferences: { [weak self] in
+        self?.closePanel()
         self?.showPreferences()
       },
       showAbout: { [weak self] in
+        self?.closePanel()
         self?.showAbout()
       },
       quit: {
@@ -144,66 +153,65 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       }
     )
 
-    popover.behavior = .transient
-    popover.animates = true
-    popover.contentSize = ClackPopoverView.compactContentSize
-    popover.contentViewController = NSHostingController(
-      rootView: ClackPopoverView(
-        store: store,
-        preferences: preferences,
-        actions: actions,
-        setContentSize: { [weak self] size in
-          self?.popover.contentSize = size
-        }
-      )
-    )
+    return actions
   }
 
   private func configureGlobalHotKeys() {
-    let globalHotKeys = GlobalHotKeyController { [weak self] in
+    let globalHotKeys = GlobalHotKeyController(shortcut: preferences.openShortcut) { [weak self] in
       self?.togglePopover(nil)
     }
     globalHotKeys.start()
     self.globalHotKeys = globalHotKeys
   }
 
-  private func restore(_ item: ClipboardItem) {
+  private func restore(_ item: ClipboardItem, options: ClipboardRestoreOptions) {
     let pasteboard = NSPasteboard.general
     pasteboard.clearContents()
+    var didWrite = false
 
     switch item.kind {
     case .text:
-      pasteboard.setString(item.content, forType: .string)
+      didWrite = pasteboard.setString(item.content, forType: .string)
     case .richText:
-      pasteboard.setString(item.content, forType: .string)
+      didWrite = pasteboard.setString(item.content, forType: .string)
 
-      for representation in item.richTextRepresentations {
-        pasteboard.setData(
-          representation.data,
-          forType: NSPasteboard.PasteboardType(representation.type)
-        )
+      if !options.plainTextOnly {
+        for representation in item.richTextRepresentations {
+          didWrite = pasteboard.setData(
+            representation.data,
+            forType: NSPasteboard.PasteboardType(representation.type)
+          ) || didWrite
+        }
       }
     case .file:
       let urls = item.fileURLs.map { URL(fileURLWithPath: $0) as NSURL }
       if !urls.isEmpty {
-        pasteboard.writeObjects(urls)
+        didWrite = pasteboard.writeObjects(urls)
       }
     case .image:
       if
         let imageData = item.imageData,
         let image = NSImage(data: imageData)
       {
-        pasteboard.writeObjects([image])
+        didWrite = pasteboard.writeObjects([image])
       } else if let imageData = item.imageData {
-        pasteboard.setData(
+        didWrite = pasteboard.setData(
           imageData,
           forType: NSPasteboard.PasteboardType(item.imageContentType ?? "public.png")
         )
       }
     }
 
-    monitor?.ignoreChange(count: pasteboard.changeCount)
-    popover.performClose(nil)
+    if didWrite {
+      monitor?.ignoreChange(count: pasteboard.changeCount)
+      store.markRestored(item.id)
+    }
+
+    closePanel()
+
+    if didWrite, options.pasteAfterRestore {
+      PasteExecutor.pasteAfterMenuCloses()
+    }
   }
 
   private func showPreferences() {
@@ -220,13 +228,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     )
 
     let window = NSWindow(
-      contentRect: NSRect(x: 0, y: 0, width: 840, height: 620),
+      contentRect: NSRect(origin: .zero, size: PreferencesView.preferredWindowSize),
       styleMask: [.titled, .closable, .miniaturizable, .resizable],
       backing: .buffered,
       defer: false
     )
-    window.title = "Clack Preferences"
-    window.minSize = NSSize(width: 760, height: 560)
+    window.title = "General"
+    window.contentMinSize = PreferencesView.preferredWindowSize
     window.center()
     window.contentViewController = NSHostingController(rootView: view)
 
@@ -251,11 +259,71 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       return
     }
 
-    if popover.isShown {
-      popover.performClose(sender)
+    if panel?.isPresented == true {
+      closePanel()
     } else {
-      NSApplication.shared.activate(ignoringOtherApps: true)
-      popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+      if shouldSuppressPanelOpen() {
+        return
+      }
+
+      openPanel(relativeTo: button)
     }
+  }
+
+  private func openPanel(relativeTo button: NSStatusBarButton) {
+    let panel = ClackFloatingPanel(
+      contentSize: ClackPopoverView.compactContentSize,
+      popupLocation: preferences.popupLocation,
+      statusButton: button,
+      onClose: { [weak self] in
+        self?.suppressPanelOpenUntil = Date().addingTimeInterval(0.25)
+        self?.previewPopover.close()
+        self?.panel = nil
+      },
+      rootView: ClackPopoverView(
+        store: store,
+        preferences: preferences,
+        actions: makeClipboardActions(),
+        showPreview: { [weak self] item, rowRect in
+          self?.showPreview(item, anchoredTo: rowRect)
+        },
+        hidePreview: { [weak self] in
+          self?.previewPopover.close()
+        }
+      )
+    )
+
+    self.panel = panel
+    panel.open()
+  }
+
+  private func closePanel() {
+    previewPopover.close()
+    panel?.close()
+    panel = nil
+  }
+
+  private func showPreview(_ item: ClipboardItem, anchoredTo rowRect: NSRect) {
+    guard
+      let panel,
+      let contentView = panel.contentView
+    else {
+      return
+    }
+
+    previewPopover.show(item: item, relativeTo: rowRect, of: contentView)
+  }
+
+  private func shouldSuppressPanelOpen() -> Bool {
+    guard let suppressPanelOpenUntil else {
+      return false
+    }
+
+    if Date() < suppressPanelOpenUntil {
+      return true
+    }
+
+    self.suppressPanelOpenUntil = nil
+    return false
   }
 }
