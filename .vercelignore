@@ -1,0 +1,30 @@
+# Vercel only needs the static marketing site and root deployment config.
+# Keep macOS app build artifacts out of uploads; they can be very large.
+
+.DS_Store
+.build/
+.github/
+.vercel/
+DerivedData/
+Packages/
+
+Sources/
+Tests/
+Packaging/
+docs/
+scripts/
+
+*.app
+*.dmg
+*.pkg
+*.xcarchive
+
+CHANGELOG.md
+CODE_OF_CONDUCT.md
+CONTRIBUTING.md
+GOVERNANCE.md
+LICENSE
+Package.swift
+README.md
+SECURITY.md
+SUPPORT.md
