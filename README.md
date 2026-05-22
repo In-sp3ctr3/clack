@@ -132,7 +132,8 @@ Please read [CONTRIBUTING.md](CONTRIBUTING.md), [CODE_OF_CONDUCT.md](CODE_OF_CON
 
 ## Website
 
-The Vercel-ready download page lives in [site](site). See [site/README.md](site/README.md) for local website commands.
+The public download page is [tryclack.spectrelabshq.com](https://tryclack.spectrelabshq.com).
+The Vercel-ready source lives in [site](site). See [site/README.md](site/README.md) for local website commands.
 
 ## License
 

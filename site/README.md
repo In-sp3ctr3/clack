@@ -16,6 +16,8 @@ The build copies `index.html`, `styles.css`, and `assets/` into `dist/`.
 
 The repository includes `vercel.json` at the root. Vercel can build this folder as a static site using the `site/package.json` build script.
 
+Production: [tryclack.spectrelabshq.com](https://tryclack.spectrelabshq.com)
+
 ## Content Rules
 
 - Keep install instructions aligned with `README.md`.
